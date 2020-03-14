@@ -1,0 +1,31 @@
+{
+  "name": "homebridge-rinnai-touch-plugin",
+  "version": "1.0.0",
+  "description": "Homebridge Plugin to control heating/cooling via a Rinnai Touch WiFi Module",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mantorok1/homebridge-rinnai-touch-plugin.git"
+  },
+  "keywords": [
+    "homebridge-plugin",
+    "rinnai",
+    "touch",
+    "brivas"
+  ],
+  "engines": {
+    "homebridge": ">=0.2.5"
+  },
+  "author": "David Matthews",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/mantorok1/homebridge-rinnai-touch-plugin/issues"
+  },
+  "homepage": "https://github.com/mantorok1/homebridge-rinnai-touch-plugin#readme",
+  "dependencies": {
+    "concurrent-queue": "^7.0.2"
+  }
+}
