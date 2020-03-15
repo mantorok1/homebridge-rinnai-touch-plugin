@@ -271,13 +271,14 @@ class RinnaiHeaterCooler {
             ? Characteristic.Active.ACTIVE
             : Characteristic.Active.INACTIVE;
         // CurrentHeaterCoolerState
-        if (modeObj.GSS.HC === 'N') {
-            this.characteristics.CurrentHeaterCoolerState = 
-                Characteristic.CurrentHeaterCoolerState.IDLE;
-        } else {
-            this.characteristics.CurrentHeaterCoolerState = mode === HEAT
-                ? Characteristic.CurrentHeaterCoolerState.HEATING
-                : Characteristic.CurrentHeaterCoolerState.COOLING;
+        this.characteristics.CurrentHeaterCoolerState = Characteristic.CurrentHeaterCoolerState.IDLE;
+        if ('GSS' in modeObj) {
+            if ('HC' in modeObj.GSS && modeObj.GSS.HC === 'Y') {
+                this.characteristics.CurrentHeaterCoolerState = Characteristic.CurrentHeaterCoolerState.HEATING;
+            }
+            else if ('CC' in modeObj.GSS && modeObj.GSS.CC === 'Y') {
+                this.characteristics.CurrentHeaterCoolerState = Characteristic.CurrentHeaterCoolerState.COOLING;
+            }
         }
         // TargetHeaterCoolerState
         this.characteristics.TargetHeaterCoolerState = mode === HEAT
@@ -297,7 +298,9 @@ class RinnaiHeaterCooler {
         // Zones
         for(let zone in this.zones) {
             // On
-            this.characteristics[`Zone${zone}On`] = modeObj[`Z${zone}O`].UE === 'Y';       
+            if (`Z${zone}O` in modeObj) {
+                this.characteristics[`Zone${zone}On`] = modeObj[`Z${zone}O`].UE === 'Y';
+            }
         }
     }
 }
