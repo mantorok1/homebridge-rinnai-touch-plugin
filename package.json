@@ -1,6 +1,6 @@
 {
   "name": "homebridge-rinnai-touch-plugin",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Homebridge Plugin to control heating/cooling via a Rinnai Touch WiFi Module",
   "main": "index.js",
   "scripts": {

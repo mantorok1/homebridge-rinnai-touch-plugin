@@ -18,7 +18,6 @@ class RinnaiTouchTcp {
             try {
                 if (!self.address) {
                     self.address = await self.udp.getAddress();
-                    // TODO: If cant connect then set address to null and try again
                 }
 
                 if (self.socket) {
@@ -38,6 +37,7 @@ class RinnaiTouchTcp {
                 });
         
                 self.socket.on('error', (error) => {
+                    self.address = undefined;
                     self.socket.removeAllListeners();
                     reject(error);
                 });
@@ -45,6 +45,7 @@ class RinnaiTouchTcp {
                 self.socket.connect(self.address.port, self.address.address);
             }
             catch(error) {
+                self.address = undefined;
                 if (self.socket) {
                     self.socket.removeAllListeners();
                 }

@@ -11,18 +11,13 @@ class RinnaiTouchServer {
         this.queue = cq()
             .limit({ concurrency: 1 })
             .process(this.process.bind(this));
-
-        this.queue.drained(() => {
-            this.status = undefined;
-            if (this.debug) this.log('queue is drained');
-        });
     }
 
     async getStatus() {
         try {
             if (this.debug) this.log('RinnaiTouchServer.getStatus()');
             this.status = await this.queue();
-            return this.status;
+            return JSON.parse(this.status);
         }
         catch(error) {
             throw error;
@@ -47,7 +42,7 @@ class RinnaiTouchServer {
                 return this.status;
             }
 
-            let status = await this.tcp.connect();
+            let status = await this.connect();
             if (command) {
                 await this.tcp.write(command);
             }
@@ -59,6 +54,23 @@ class RinnaiTouchServer {
         finally {
             await this.tcp.destroy();
         }
+    }
+
+    async connect(limit = 3, delay = 1000) {
+        if (this.debug) this.log(`RinnaiTouchServer.connect(${limit}, ${delay})`);
+
+        for(let i = 1; i <= limit; i++) {
+            try {
+                return await this.tcp.connect();
+            } catch(e) {
+                this.log(`Connect failed: ${e.message} [Attempt ${i} of ${limit}]`)
+                await new Promise((resolve) => {
+                    setTimeout(resolve, delay);
+                });
+            } 
+        }
+
+        throw new error('Unable to connect to Rinnai Touch Module');
     }
 }
 
