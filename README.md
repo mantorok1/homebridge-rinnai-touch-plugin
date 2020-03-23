@@ -84,7 +84,7 @@ The following table lists all the characteristics that are supported:
 |heat|HeaterCooler_Active|Get/Set power state [N=On,F=Off]|N,F|[1,"HGOM","OOP","ST"]|
 |heat|HeaterCooler_CurrentHeaterCoolerState|Get current cooler state|Y,N|[1,"HGOM","GSS","HC"]|
 |heat|HeaterCooler_TargetHeaterCoolerState|Get/Set mode [H=Heat,C=Cool,E=Evap]|H,C,E|[0,"SYST","OSS","MD"]|
-|heat|HeaterCooler_CurrentTemperature|Get current temp [nn=digits]|nn|[1,"HGOM","ZUS","MT"]|
+|heat|HeaterCooler_CurrentTemperature|Get current temp [nnn=digits]|nnn|[1,"HGOM","ZUS","MT"]|
 |heat|HeaterCooler_HeatingThresholdTemperature|Get/Set desired temp [nn=digits]|nn|[1,"HGOM","GSO","SP"]|
 |heat|SwitchZoneA_On"|Get/Set Zone A on/off|Y,N|[1,"HGOM","ZAO","UE"]|
 |heat|SwitchZoneB_On"|Get/Set Zone B on/off|Y,N|[1,"HGOM","ZBO","UE"]|
@@ -93,7 +93,7 @@ The following table lists all the characteristics that are supported:
 |cool|HeaterCooler_Active|Get/Set power state [N=On,F=Off]|N,F|[1,"CGOM","OOP","ST"]|
 |cool|HeaterCooler_CurrentHeaterCoolerState|Get current cooler state|Y,N|[1,"CGOM","GSS","CC"]|
 |cool|HeaterCooler_TargetHeaterCoolerState|Get/Set mode [H=Heat,C=Cool,E=Evap]|H,C,E|[0,"SYST","OSS","MD"]|
-|cool|HeaterCooler_CurrentTemperature|Get current temp [nn=digits]|nn|[1,"CGOM","ZUS","MT"]|
+|cool|HeaterCooler_CurrentTemperature|Get current temp [nnn=digits]|nnn|[1,"CGOM","ZUS","MT"]|
 |cool|HeaterCooler_CoolingThresholdTemperature|Get/Set desired temp [nn=digits]|nn|[1,"CGOM","GSO","SP"]|
 |cool|SwitchZoneA_On"|Get/Set Zone A on/off|Y,N|[1,"CGOM","ZAO","UE"]|
 |cool|SwitchZoneB_On"|Get/Set Zone B on/off|Y,N|[1,"CGOM","ZBO","UE"]|
@@ -128,4 +128,5 @@ The following is a sample map override which I think will work with an Evaporati
 * If the TCP connection is not closed properly then no further connections can be made to the module. I've tried to mitigate this as best I can by keeping TCP connections as short as possible and only allowing one request at a time. If it does happen I find rebooting my router clears it but rebooting the module itself should work also.
 * Evaporative cooling is only partially supported (maybe?). It should be able to turn on/off, switch between heating/cooling and indicate if unit is actively cooling. It requires map overrides to be defined.
 * Due to the lag between sending a command to the module and it correctly reflecting that command in it's status there is a delay of a few seconds before the Home app shows the correct values. eg. When switching from HEAT to COOL mode some details such as the desired temperature will take a few seconds before the current value is shown.
+* This plugin only supports systems which have a single controller. If more than one controller is installed in your home then only one of them can be configured for use by HomeKit.
 
