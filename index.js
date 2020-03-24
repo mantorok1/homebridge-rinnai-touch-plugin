@@ -6,13 +6,24 @@ let Service, Characteristic;
     {
       "accessory": "RinnaiHeaterCooler",
       "name": "Rinnai Touch",
-      "zones": {
-        "A": "Bedrooms",
-        "B": "Living Areas"
-      },
-      "map": {},
-      "refresh": 60,
-      "debug": true
+      "controllers": [
+            {
+                "name": "Rinnai Touch",
+                "map": {},
+            }
+      ],
+      "zones": [
+            {
+                "name": "Bedrooms",
+                "map": {}
+            },
+            {
+                "name": "Living Areas",
+                "map": {}
+            }
+        ],
+        "refresh": 60,
+        "debug": true
     }
 */
 
@@ -35,8 +46,15 @@ class RinnaiHeaterCooler {
         if (this.debug) this.log('RinnaiHeaterCooler()');
 
         this.name = config['name'] || 'Rinnai Touch';
-        this.zones = config['zones'] || {};
-        this.map = this.getMap(config['map'] || {});
+        this.controllers = config['controllers'] || [{ "name": this.name }];
+        this.zones = config['zones'] || [];
+
+        this.services = {
+            "HeaterCooler": [],
+            "ZoneSwitch": []
+        };
+
+        this.maps = this.getMaps();
 
         this.coolerValue = 'C';
         this.commandSent = false;
@@ -56,7 +74,6 @@ class RinnaiHeaterCooler {
     getServices() {
         if (this.debug) this.log('RinnaiHeaterCooler.getServices()');
 
-        this.services = {};
         let services = [];
 
         // Information Service
@@ -68,67 +85,82 @@ class RinnaiHeaterCooler {
             .setCharacteristic(Characteristic.FirmwareRevision, this.version) // What does this do?
             .setCharacteristic(Characteristic.SerialNumber, this.version);
         
-        this.services['Information'] = informationService;
         services.push(informationService);
 
-        // Heater Cooler Service
-        let heaterCoolerService = new Service.HeaterCooler(this.name);
-        heaterCoolerService
-            .getCharacteristic(Characteristic.Active)
-            .on('get', this.getCharacteristic.bind(this, 'HeaterCooler_Active'))
-            .on('set', this.setCharacteristic.bind(this, 'HeaterCooler_Active'));
+        // Heater Cooler Service(s)
+        for(let index in this.controllers) {
+            index = parseInt(index);
+            if (index > 3) {
+                break;
+            }
 
-        heaterCoolerService
-            .getCharacteristic(Characteristic.CurrentHeaterCoolerState)
-            .on('get', this.getCharacteristic.bind(this, 'HeaterCooler_CurrentHeaterCoolerState'));
+            let subType = `HeaterCooler${index}`;
+            let heaterCoolerService = new Service.HeaterCooler(this.controllers[index].name, subType);
 
-        heaterCoolerService
-            .getCharacteristic(Characteristic.TargetHeaterCoolerState)
-            .on('get', this.getCharacteristic.bind(this, 'HeaterCooler_TargetHeaterCoolerState'))
-            .on('set', this.setCharacteristic.bind(this, 'HeaterCooler_TargetHeaterCoolerState'));
+            heaterCoolerService
+                .getCharacteristic(Characteristic.Active)
+                .on('get', this.getCharacteristic.bind(this, index, 'HeaterCooler_Active'))
+                .on('set', this.setCharacteristic.bind(this, index, 'HeaterCooler_Active'));
 
-        heaterCoolerService
-            .getCharacteristic(Characteristic.CurrentTemperature)
-            .on('get', this.getCharacteristic.bind(this, 'HeaterCooler_CurrentTemperature'));
+            heaterCoolerService
+                .getCharacteristic(Characteristic.CurrentHeaterCoolerState)
+                .on('get', this.getCharacteristic.bind(this, index, 'HeaterCooler_CurrentHeaterCoolerState'));
 
-        heaterCoolerService
-            .getCharacteristic(Characteristic.HeatingThresholdTemperature)
-            .setProps({
-                minValue: 8,
-                maxValue: 30,
-                minStep: 1,
-            })
-            .on('get', this.getCharacteristic.bind(this, 'HeaterCooler_HeatingThresholdTemperature'))
-            .on('set', this.setCharacteristic.bind(this, 'HeaterCooler_HeatingThresholdTemperature'))
-            .updateValue(8);
+            heaterCoolerService
+                .getCharacteristic(Characteristic.TargetHeaterCoolerState)
+                .setProps({
+                    minValue: Characteristic.TargetHeaterCoolerState.HEAT
+                })
+                .on('get', this.getCharacteristic.bind(this, index, 'HeaterCooler_TargetHeaterCoolerState'))
+                .on('set', this.setCharacteristic.bind(this, index, 'HeaterCooler_TargetHeaterCoolerState'))
+                .updateValue(Characteristic.TargetHeaterCoolerState.HEAT);
+
+            heaterCoolerService
+                .getCharacteristic(Characteristic.CurrentTemperature)
+                .on('get', this.getCharacteristic.bind(this, index, 'HeaterCooler_CurrentTemperature'));
+
+            heaterCoolerService
+                .getCharacteristic(Characteristic.HeatingThresholdTemperature)
+                .setProps({
+                    minValue: 8,
+                    maxValue: 30,
+                    minStep: 1,
+                })
+                .on('get', this.getCharacteristic.bind(this, index, 'HeaterCooler_HeatingThresholdTemperature'))
+                .on('set', this.setCharacteristic.bind(this, index, 'HeaterCooler_HeatingThresholdTemperature'))
+                .updateValue(8);
     
-        heaterCoolerService
-            .getCharacteristic(Characteristic.CoolingThresholdTemperature)
-            .setProps({
-                minValue: 8,
-                maxValue: 30,
-                minStep: 1,
-            })
-            .on('get', this.getCharacteristic.bind(this, 'HeaterCooler_CoolingThresholdTemperature'))
-            .on('set', this.setCharacteristic.bind(this, 'HeaterCooler_CoolingThresholdTemperature'))
-            .updateValue(8);
+            heaterCoolerService
+                .getCharacteristic(Characteristic.CoolingThresholdTemperature)
+                .setProps({
+                    minValue: 8,
+                    maxValue: 30,
+                    minStep: 1,
+                })
+                .on('get', this.getCharacteristic.bind(this, index, 'HeaterCooler_CoolingThresholdTemperature'))
+                .on('set', this.setCharacteristic.bind(this, index, 'HeaterCooler_CoolingThresholdTemperature'))
+                .updateValue(8);
 
-        this.services['HeaterCooler'] = heaterCoolerService;
-        services.push(heaterCoolerService);
+            this.services.HeaterCooler.push(heaterCoolerService);
+            services.push(heaterCoolerService);
+        }
 
         // Zone Switches
-        if (Object.keys(this.zones).length > 1) {
-            for(let zone in this.zones) {
-                let service = `SwitchZone${zone}`;
-                let zoneSwitch = new Service.Switch(this.zones[zone], service);
-                zoneSwitch
-                    .getCharacteristic(Characteristic.On)
-                    .on('get', this.getCharacteristic.bind(this, `${service}_On`))
-                    .on('set', this.setCharacteristic.bind(this, `${service}_On`));
-                   
-                this.services[service] = zoneSwitch;
-                services.push(zoneSwitch);
+        for(let index in this.zones) {
+            index = parseInt(index);
+            if (parseInt(index) > 3) {
+                break;
             }
+
+            let subType = `ZoneSwitch${index}`;
+            let zoneSwitch = new Service.Switch(this.zones[index].name, subType);
+            zoneSwitch
+                .getCharacteristic(Characteristic.On)
+                .on('get', this.getCharacteristic.bind(this, index, 'ZoneSwitch_On'))
+                .on('set', this.setCharacteristic.bind(this, index, 'ZoneSwitch_On'));
+
+            this.services.ZoneSwitch.push(zoneSwitch);
+            services.push(zoneSwitch);
         }
 
         setTimeout(this.init.bind(this), 1000);
@@ -141,10 +173,16 @@ class RinnaiHeaterCooler {
             if (this.debug) this.log('RinnaiHeaterCooler.init()');
             let status = await this.server.getStatus();
 
+            const path = {
+                "HasHeater": [0, "SYST", "AVM", "HG"],
+                "HasCooler": [0, "SYST", "AVM", "CG"],
+                "HasEvap": [0, "SYST", "AVM", "EC"],  
+            };
+
             this.currentMode = ('HGOM' in status[1]) ? 'heat' : 'cool';
-            let hasHeater = this.getState(this.map['init']['HasHeater'], status) === 'Y';
-            let hasCooler = this.getState(this.map['init']['HasCooler'], status) === 'Y';
-            let hasEvap = this.getState(this.map['init']['HasEvap'], status) === 'Y';
+            let hasHeater = this.getState(path['HasHeater'], status) === 'Y';
+            let hasCooler = this.getState(path['HasCooler'], status) === 'Y';
+            let hasEvap = this.getState(path['HasEvap'], status) === 'Y';
 
             if (hasHeater) this.log('Found Heater');
             if (hasCooler) this.log('Found Cooler');
@@ -154,7 +192,7 @@ class RinnaiHeaterCooler {
                 this.coolerValue = 'E';
             }
 
-            // CurrentHeaterCoolerState
+            // CurrentHeaterCoolerState - Valid States
             let currentValidStates = [Characteristic.CurrentHeaterCoolerState.IDLE];
             if (hasHeater) {
                 currentValidStates.push(Characteristic.CurrentHeaterCoolerState.HEATING);
@@ -162,16 +200,8 @@ class RinnaiHeaterCooler {
             if (hasCooler || hasEvap) {
                 currentValidStates.push(Characteristic.CurrentHeaterCoolerState.COOLING);
             }
-            this.services['HeaterCooler']
-                .getCharacteristic(Characteristic.CurrentHeaterCoolerState)
-                .setProps({
-                    minValue: Math.min(...currentValidStates),
-                    maxValue: Math.max(...currentValidStates),
-                    validValues: currentValidStates
-                })
-                .updateValue(Characteristic.CurrentHeaterCoolerState.IDLE);
 
-            // TargetHeaterCoolerState
+            // TargetHeaterCoolerState - Valid States
             let targetValidStates = [];
             if (hasHeater) {
                 targetValidStates.push(Characteristic.TargetHeaterCoolerState.HEAT);
@@ -179,14 +209,27 @@ class RinnaiHeaterCooler {
             if (hasCooler || hasEvap) {
                 targetValidStates.push(Characteristic.TargetHeaterCoolerState.COOL);
             }
-            this.services['HeaterCooler']
-                .getCharacteristic(Characteristic.TargetHeaterCoolerState)
-                .setProps({
-                    minValue: Math.min(...targetValidStates),
-                    maxValue: Math.max(...targetValidStates),
-                    validValues: targetValidStates
-                })
-                .updateValue(Characteristic.TargetHeaterCoolerState.HEAT);
+
+            for(let index in this.controllers) {
+                index = parseInt(index);
+                this.services.HeaterCooler[index]
+                    .getCharacteristic(Characteristic.CurrentHeaterCoolerState)
+                    .setProps({
+                        minValue: Math.min(...currentValidStates),
+                        maxValue: Math.max(...currentValidStates),
+                        validValues: currentValidStates
+                    })
+                    .updateValue(currentValidStates[0]);
+
+                this.services.HeaterCooler[index]
+                    .getCharacteristic(Characteristic.TargetHeaterCoolerState)
+                    .setProps({
+                        minValue: Math.min(...targetValidStates),
+                        maxValue: Math.max(...targetValidStates),
+                        validValues: targetValidStates
+                    })
+                    .updateValue(targetValidStates[0]);
+            }
 
             // Zones
             const path1 = Object.keys(status[1])[0];
@@ -227,22 +270,26 @@ class RinnaiHeaterCooler {
             let status = await this.server.getStatus();
             this.currentMode = ('HGOM' in status[1]) ? 'heat' : 'cool';
             
-            for(let key in this.map[this.currentMode]) {
-                const [service, characteristic] = key.split('_');
-
-                if (!(service in this.services)) {
-                    continue;
+            for(let index in this.maps) {
+                index = parseInt(index);
+                let map = this.maps[index];
+                for(let key in map[this.currentMode]) {
+                    const [service, characteristic] = key.split('_');
+    
+                    if (index >= this.services[service].length) {
+                        continue;
+                    }
+    
+                    let path = map[this.currentMode][key];
+                    let state = this.getState(path, status);
+                    let value = state === undefined
+                        ? this.getDefaultValue(key)
+                        : this.convertFromState(key, state);
+                
+                    this.services[service][index]
+                        .getCharacteristic(Characteristic[characteristic])
+                        .updateValue(value);
                 }
-
-                let path = this.map[this.currentMode][key];
-                let state = this.getState(path, status);
-                let value = state === undefined
-                    ? this.getDefaultValue(key)
-                    : this.convertFromState(key, state);
-            
-                this.services[service]
-                    .getCharacteristic(Characteristic[characteristic])
-                    .updateValue(value);
             }
         }
         catch(error) {
@@ -250,13 +297,13 @@ class RinnaiHeaterCooler {
         }        
     }
 
-    async getCharacteristic(characteristic, callback) {
+    async getCharacteristic(index, characteristic, callback) {
         try {
-            if (this.debug) this.log(`RinnaiHeaterCooler.getCharacteristic('${characteristic}')`);
+            if (this.debug) this.log(`RinnaiHeaterCooler.getCharacteristic(${index}, '${characteristic}')`);
             let status = await this.server.getStatus();
 
             this.currentMode = ('HGOM' in status[1]) ? 'heat' : 'cool';
-            let path = this.map[this.currentMode][characteristic];
+            let path = this.maps[index][this.currentMode][characteristic];
             let state = this.getState(path, status);
 
             let value = state === undefined
@@ -310,10 +357,7 @@ class RinnaiHeaterCooler {
             case 'HeaterCooler_HeatingThresholdTemperature':
             case 'HeaterCooler_CoolingThresholdTemperature':
                 return parseFloat(state);
-            case 'SwitchZoneA_On':
-            case 'SwitchZoneB_On':
-            case 'SwitchZoneC_On':
-            case 'SwitchZoneD_On':
+            case 'ZoneSwitch_On':
                 return state === 'Y';
             default:
                 throw new Error(`Invalid characteristic: ${characteristic}`);
@@ -331,21 +375,18 @@ class RinnaiHeaterCooler {
             case 'HeaterCooler_HeatingThresholdTemperature':
             case 'HeaterCooler_CoolingThresholdTemperature':
                 return null;
-            case 'SwitchZoneA_On':
-            case 'SwitchZoneB_On':
-            case 'SwitchZoneC_On':
-            case 'SwitchZoneD_On':
+            case 'ZoneSwitch_On':
                 return false;
             default:
                 throw new Error(`No default value for characteristic: ${characteristic}`);
         }
     }
 
-    async setCharacteristic(characteristic, value, callback) {
+    async setCharacteristic(index, characteristic, value, callback) {
         try {
-            if (this.debug) this.log(`RinnaiHeaterCooler.setCharacteristic('${characteristic}', ${value})`);
+            if (this.debug) this.log(`RinnaiHeaterCooler.setCharacteristic(${index}, '${characteristic}', ${value})`);
             
-            var command = this.constructCommand(characteristic, value);
+            var command = this.constructCommand(index, characteristic, value);
             await this.server.sendCommand(command);
             this.commandSent = true;
 
@@ -357,8 +398,8 @@ class RinnaiHeaterCooler {
         }        
     }
 
-    constructCommand(characteristic, value) {
-        if (this.debug) this.log(`RinnaiHeaterCooler.constructCommand('${characteristic}', ${value})`);
+    constructCommand(index, characteristic, value) {
+        if (this.debug) this.log(`RinnaiHeaterCooler.constructCommand(${index}, '${characteristic}', ${value})`);
 
         if (characteristic === 'HeaterCooler_TargetHeaterCoolerState') {
             this.currentMode = 'heat';
@@ -367,7 +408,7 @@ class RinnaiHeaterCooler {
             }
         }
 
-        let path = this.map[this.currentMode][characteristic];
+        let path = this.maps[index][this.currentMode][characteristic];
         let state = this.convertToState(characteristic, value);
 
         return `N000001{"${path[1]}":{"${path[2]}":{"${path[3]}":"${state}"}}}`;
@@ -384,35 +425,52 @@ class RinnaiHeaterCooler {
             case 'HeaterCooler_HeatingThresholdTemperature':
             case 'HeaterCooler_CoolingThresholdTemperature':
                 return ('0' + value).slice(-2);
-            case 'SwitchZoneA_On':
-            case 'SwitchZoneB_On':
-            case 'SwitchZoneC_On':
-            case 'SwitchZoneD_On':
+            case 'ZoneSwitch_On':
                 return value ? 'Y' : 'N';
             default:
                 throw new Error(`Invalid characteristic: ${characteristic}`);
         }
     }
 
-    getMap(override) {
-        if (this.debug) this.log(`RinnaiHeaterCooler.getMap(${JSON.stringify(override)})`);
+    getMaps() {
+        if (this.debug) this.log('RinnaiHeaterCooler.getMaps()');
+        let maps = [];
 
+        for(let index in this.controllers) {
+            index = parseInt(index);
+            if (maps.length === index) {
+                maps.push(this.getMapDefault(index));
+            }
+            if ("map" in this.controllers[index]) {
+                this.applyMapOverride(maps[index], this.controllers[index].map);
+            }
+        }
+
+        for(let index in this.zones) {
+            index = parseInt(index);
+            if (maps.length === index) {
+                maps.push(this.getMapDefault(index));
+            }
+            if ("map" in this.zones[index]) {
+                this.applyMapOverride(maps[index], this.zones[index].map);
+            }
+        }
+
+        return maps;
+    }
+
+    getMapDefault(index) {
+        if (this.debug) this.log(`RinnaiHeaterCooler.getMapDefault(${index})`);
+
+        let zone = String.fromCharCode(65 + index); // A, B, C or D
         let map = {
-            "init": {
-                "HasHeater": [0, "SYST", "AVM", "HG"],
-                "HasCooler": [0, "SYST", "AVM", "CG"],
-                "HasEvap": [0, "SYST", "AVM", "EC"],
-            },
             "heat": {
                 "HeaterCooler_Active": [1, "HGOM", "OOP", "ST"], // N/F
                 "HeaterCooler_CurrentHeaterCoolerState": [1, "HGOM", "GSS", "HC"], // Y/N
                 "HeaterCooler_TargetHeaterCoolerState":  [0, "SYST", "OSS", "MD"], // H/C/E
                 "HeaterCooler_CurrentTemperature": [1, "HGOM", "ZUS", "MT"], // nn
                 "HeaterCooler_HeatingThresholdTemperature": [1, "HGOM", "GSO", "SP"], // nn
-                "SwitchZoneA_On": [1, "HGOM", "ZAO", "UE"], // Y/N
-                "SwitchZoneB_On": [1, "HGOM", "ZBO", "UE"], // Y/N
-                "SwitchZoneC_On": [1, "HGOM", "ZCO", "UE"], // Y/N
-                "SwitchZoneD_On": [1, "HGOM", "ZDO", "UE"] // Y/N
+                "ZoneSwitch_On": [1, "HGOM", `Z${zone}O`, "UE"], // Y/N
             },
             "cool": {
                 "HeaterCooler_Active": [1, "CGOM", "OOP", "ST"],
@@ -420,14 +478,16 @@ class RinnaiHeaterCooler {
                 "HeaterCooler_TargetHeaterCoolerState":  [0, "SYST", "OSS", "MD"],
                 "HeaterCooler_CurrentTemperature": [1, "CGOM", "ZUS", "MT"],
                 "HeaterCooler_CoolingThresholdTemperature": [1, "CGOM", "GSO", "SP"],
-                "SwitchZoneA_On": [1, "CGOM", "ZAO", "UE"],
-                "SwitchZoneB_On": [1, "CGOM", "ZBO", "UE"],
-                "SwitchZoneC_On": [1, "CGOM", "ZCO", "UE"],
-                "SwitchZoneD_On": [1, "CGOM", "ZDO", "UE"]
+                "ZoneSwitch_On": [1, "CGOM", `Z${zone}O`, "UE"],
             }        
         };
 
-        // Apply the overrides
+        return map;
+    }
+
+    applyMapOverride(map, override) {
+        if (this.debug) this.log(`RinnaiHeaterCooler.applyMapOverride(${JSON.stringify(map)}, ${JSON.stringify(override)})`);
+
         for(let mode in override) {
             for(let characteristic in override[mode]) {
                 if (override[mode][characteristic].length === 0) {
@@ -437,7 +497,5 @@ class RinnaiHeaterCooler {
                 }
             }
         }
-
-        return map;
     }
 }
