@@ -28,13 +28,9 @@ This plugin will add one or more accessories to the Home app depending on your R
 ## Installation
 Note: This plugin requires homebridge to be installed first.
 
-To install for the first time:
+To install or upgrade to the latest version of this plugin:
 
-    npm install -g homebridge-rinnai-touch-plugin
-
-To upgrade the already installed plugin:
-
-    npm update -g homebridge-rinnai-touch-plugin
+    npm install -g homebridge-rinnai-touch-plugin@latest
 
 ## Configuration
 
