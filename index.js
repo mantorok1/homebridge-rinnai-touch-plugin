@@ -1,260 +1,849 @@
 const RinnaiTouchServer = require('./RinnaiTouchServer');
+const Mapper = require('./Mapper');
 
-let Service, Characteristic;
+let Accessory, Service, Characteristic, UUIDGen;
 
 /*  config.json
     {
-      "accessory": "RinnaiHeaterCooler",
-      "name": "Rinnai Touch",
-      "controllers": [
-            {
-                "name": "Rinnai Touch",
-                "map": {},
-            }
-      ],
-      "zones": [
-            {
-                "name": "Bedrooms",
-                "map": {}
-            },
-            {
-                "name": "Living Areas",
-                "map": {}
-            }
-        ],
+        "platform": "RinnaiTouchPlatform",
+        "name": "Rinnai Touch",
+        "controllers": 1,
+        "maps": {},
+        "showAuto": true,
+        "showZoneSwitches": true,
+        "showFan": true,
+        "showAdvanceSwitch": true,
         "refresh": 60,
+        "clearCache": false,
         "debug": true
     }
 */
 
 module.exports = function(homebridge) {
+    Accessory = homebridge.platformAccessory;
     Service = homebridge.hap.Service;
     Characteristic = homebridge.hap.Characteristic;
-  
-    homebridge.registerAccessory(
-      'homebridge-rinnai-touch-plugin',
-      'RinnaiHeaterCooler',
-      RinnaiHeaterCooler
-    );
-};
+    UUIDGen = homebridge.hap.uuid;
 
-class RinnaiHeaterCooler {
-    constructor(log, config) {
+    homebridge.registerPlatform("homebridge-rinnai-touch-plugin", "RinnaiTouchPlatform", RinnaiTouchPlatform, true);
+}
+
+class RinnaiTouchPlatform {
+    constructor(log, config, api) {
         this.log = log;
-        this.debug = config['debug'] === undefined ? false : config['debug'];
 
-        if (this.debug) this.log('RinnaiHeaterCooler()');
+        if (config === null) {
+            config = {};
+        }
 
-        this.name = config['name'] || 'Rinnai Touch';
-        this.controllers = config['controllers'] || [{ "name": this.name }];
-        this.zones = config['zones'] || [];
+        this.debug = config.debug === undefined ? false : config.debug;
 
-        this.services = {
-            "HeaterCooler": [],
-            "ZoneSwitch": []
-        };
+        if (this.debug) this.log(`RinnaiTouchPlatform(log,${JSON.stringify(config)},api)`);
 
-        this.maps = this.getMaps();
+        this.name = config.name || 'Rinnai Touch';
+        this.controllers = config.controllers
+        this.maps = config.maps;
+        this.showAuto = config.showAuto === undefined ? true : config.showAuto;
+        this.showZoneSwitches = config.showZoneSwitches === undefined ? true : config.showZoneSwitches;
+        this.showFan = config.showFan === undefined ? true : config.showFan;
+        this.showAdvanceSwitch = config.showAdvanceSwitch === undefined ? true : config.showAdvanceSwitch;
+        this.clearCache = config.clearCache === undefined ? false : config.clearCache;
 
-        this.coolerValue = 'C';
-        this.commandSent = false;
-        this.currentMode = undefined;
+        this.accessories = {};
 
         this.server = new RinnaiTouchServer({log: this.log, debug: this.debug});
         this.server.queue.drained(this.postProcess.bind(this));
 
-        // Refresh characteristics
-        if (config['refresh']) {
-            this.log(`Refresh every ${config['refresh']} seconds`);
-            let ms = parseInt(config['refresh']) * 1000;
-            setInterval(this.updateAll.bind(this), 60000);
+        if (api) {
+            this.api = api;
+
+            this.api.on('didFinishLaunching', () => {
+                this.discover();
+
+                // Refresh characteristics
+                if (config.refresh) {
+                    this.log(`Refresh every ${config.refresh} seconds`);
+                    let ms = parseInt(config.refresh) * 1000;
+                    setInterval(this.updateAll.bind(this), ms);
+                }
+            });
         }
     }
 
-    getServices() {
-        if (this.debug) this.log('RinnaiHeaterCooler.getServices()');
+    configureAccessory(accessory) {
+        if (this.debug) this.log('RinnaiTouchPlatform.configureAccessory(accessory)');
 
-        let services = [];
+        this.log(`Configure ${accessory.displayName}`);
 
-        // Information Service
-        let informationService = new Service.AccessoryInformation();
-        informationService
-            .setCharacteristic(Characteristic.Name, this.name)
-            .setCharacteristic(Characteristic.Manufacturer, 'Rinnai')
-            .setCharacteristic(Characteristic.Model, 'N-BW2')
-            .setCharacteristic(Characteristic.FirmwareRevision, this.version) // What does this do?
-            .setCharacteristic(Characteristic.SerialNumber, this.version);
-        
-        services.push(informationService);
-
-        // Heater Cooler Service(s)
-        for(let index in this.controllers) {
-            index = parseInt(index);
-            if (index > 3) {
-                break;
-            }
-
-            let subType = `HeaterCooler${index}`;
-            let heaterCoolerService = new Service.HeaterCooler(this.controllers[index].name, subType);
-
-            heaterCoolerService
-                .getCharacteristic(Characteristic.Active)
-                .on('get', this.getCharacteristic.bind(this, index, 'HeaterCooler_Active'))
-                .on('set', this.setCharacteristic.bind(this, index, 'HeaterCooler_Active'));
-
-            heaterCoolerService
-                .getCharacteristic(Characteristic.CurrentHeaterCoolerState)
-                .on('get', this.getCharacteristic.bind(this, index, 'HeaterCooler_CurrentHeaterCoolerState'));
-
-            heaterCoolerService
-                .getCharacteristic(Characteristic.TargetHeaterCoolerState)
-                .setProps({
-                    minValue: Characteristic.TargetHeaterCoolerState.HEAT
-                })
-                .on('get', this.getCharacteristic.bind(this, index, 'HeaterCooler_TargetHeaterCoolerState'))
-                .on('set', this.setCharacteristic.bind(this, index, 'HeaterCooler_TargetHeaterCoolerState'))
-                .updateValue(Characteristic.TargetHeaterCoolerState.HEAT);
-
-            heaterCoolerService
-                .getCharacteristic(Characteristic.CurrentTemperature)
-                .on('get', this.getCharacteristic.bind(this, index, 'HeaterCooler_CurrentTemperature'));
-
-            heaterCoolerService
-                .getCharacteristic(Characteristic.HeatingThresholdTemperature)
-                .setProps({
-                    minValue: 8,
-                    maxValue: 30,
-                    minStep: 1,
-                })
-                .on('get', this.getCharacteristic.bind(this, index, 'HeaterCooler_HeatingThresholdTemperature'))
-                .on('set', this.setCharacteristic.bind(this, index, 'HeaterCooler_HeatingThresholdTemperature'))
-                .updateValue(8);
+        accessory.reachable = true;
     
-            heaterCoolerService
-                .getCharacteristic(Characteristic.CoolingThresholdTemperature)
-                .setProps({
-                    minValue: 8,
-                    maxValue: 30,
-                    minStep: 1,
-                })
-                .on('get', this.getCharacteristic.bind(this, index, 'HeaterCooler_CoolingThresholdTemperature'))
-                .on('set', this.setCharacteristic.bind(this, index, 'HeaterCooler_CoolingThresholdTemperature'))
-                .updateValue(8);
+        const type = accessory.context.type;
 
-            this.services.HeaterCooler.push(heaterCoolerService);
-            services.push(heaterCoolerService);
+        if (type === 'thermostat') {
+            let zone = accessory.context.zone;
+            let service = accessory.getService(Service.Thermostat);
+
+            service.getCharacteristic(Characteristic.CurrentHeatingCoolingState)
+                .on('get', this.getCharacteristic.bind(this, zone, this.getCurrentHeatingCoolingState.bind(this)));
+
+            service.getCharacteristic(Characteristic.TargetHeatingCoolingState)
+                .on('get', this.getCharacteristic.bind(this, zone, this.getTargetHeatingCoolingState.bind(this)))
+                .on('set', this.setCharacteristic.bind(this, zone, this.setTargetHeatingCoolingState.bind(this)))
+
+            service.getCharacteristic(Characteristic.CurrentTemperature)
+                .on('get', this.getCharacteristic.bind(this, zone, this.getCurrentTemperature.bind(this)))
+
+            service.getCharacteristic(Characteristic.TargetTemperature)
+                .on('get', this.getCharacteristic.bind(this, zone, this.getTargetTemperature.bind(this)))
+                .on('set', this.setCharacteristic.bind(this, zone, this.setTargetTemperature.bind(this)))
+
+            this.accessories[`Thermostat_${zone}`] = accessory;
+            return;
         }
 
-        // Zone Switches
-        for(let index in this.zones) {
-            index = parseInt(index);
-            if (parseInt(index) > 3) {
-                break;
-            }
-
-            let subType = `ZoneSwitch${index}`;
-            let zoneSwitch = new Service.Switch(this.zones[index].name, subType);
-            zoneSwitch
+        if (type === 'zoneswitch') {
+            let zone = accessory.context.zone;
+            let service = accessory.getService(Service.Switch);
+            
+            service
                 .getCharacteristic(Characteristic.On)
-                .on('get', this.getCharacteristic.bind(this, index, 'ZoneSwitch_On'))
-                .on('set', this.setCharacteristic.bind(this, index, 'ZoneSwitch_On'));
+                .on('get', this.getCharacteristic.bind(this, zone, this.getZoneSwitchOn.bind(this)))
+                .on('set', this.setCharacteristic.bind(this, zone, this.setZoneSwitchOn.bind(this)));
 
-            this.services.ZoneSwitch.push(zoneSwitch);
-            services.push(zoneSwitch);
+            this.accessories[`ZoneSwitch_${zone}`] = accessory;
+            return;
         }
 
-        setTimeout(this.init.bind(this), 1000);
+        if (type === 'fan') {
+            let service = accessory.getService(Service.Fan);
 
-        return services;
+            service
+                .getCharacteristic(Characteristic.On)
+                .on('get', this.getCharacteristic.bind(this, '', this.getFanOn.bind(this)))
+                .on('set', this.setCharacteristic.bind(this, '', this.setFanOn.bind(this)));
+
+            service
+                .getCharacteristic(Characteristic.RotationSpeed)
+                .on('get', this.getCharacteristic.bind(this, '', this.getFanRotationSpeed.bind(this)))
+                .on('set', this.setCharacteristic.bind(this, '', this.setFanRotationSpeed.bind(this)));
+
+            this.accessories['Fan'] = accessory;
+            return;
+        }
+
+        if (type === 'pump') {
+            let service = accessory.getService(Service.Valve);
+
+            service
+                .getCharacteristic(Characteristic.Active)
+                .on('get', this.getCharacteristic.bind(this, '', this.getPumpActive.bind(this)))
+                .on('set', this.setCharacteristic.bind(this, '', this.setPumpActive.bind(this)));
+    
+            service
+                .getCharacteristic(Characteristic.InUse)
+                .on('get', this.getCharacteristic.bind(this, '', this.getPumpInUse.bind(this)))
+
+            this.accessories['Pump'] = accessory;
+            return;
+        }
+
+        if (type === 'advanceswitch') {
+            let service = accessory.getService(Service.Switch);
+            
+            service
+                .getCharacteristic(Characteristic.On)
+                .on('get', this.getCharacteristic.bind(this, '', this.getAdvanceSwitchOn.bind(this)))
+                .on('set', this.setCharacteristic.bind(this, '', this.setAdvanceSwitchOn.bind(this)));
+
+            this.accessories['AdvanceSwitch'] = accessory;
+            return;
+        }
     }
 
-    async init() {
+    async discover() {
         try {
-            if (this.debug) this.log('RinnaiHeaterCooler.init()');
+            if (this.debug) this.log('RinnaiTouchPlatform.discover()');
+            
+            // Clear Cached accessories if required
+            if (this.clearCache) {
+                this.api.unregisterPlatformAccessories("homebridge-rinnai-touch-plugin", "RinnaiTouchPlatform", Object.values(this.accessories));
+                this.accessories = {};
+            }
+
             let status = await this.server.getStatus();
 
             const path = {
-                "HasHeater": [0, "SYST", "AVM", "HG"],
-                "HasCooler": [0, "SYST", "AVM", "CG"],
-                "HasEvap": [0, "SYST", "AVM", "EC"],  
+                HasHeater: 'SYST.AVM.HG',
+                HasCooler: 'SYST.AVM.CG',
+                HasEvap: 'SYST.AVM.EC',
+                HasMultipleControllers: 'SYST.CFG.MTSP'
             };
 
-            this.currentMode = ('HGOM' in status[1]) ? 'heat' : 'cool';
-            let hasHeater = this.getState(path['HasHeater'], status) === 'Y';
-            let hasCooler = this.getState(path['HasCooler'], status) === 'Y';
-            let hasEvap = this.getState(path['HasEvap'], status) === 'Y';
+            this.hasHeater = status.getState(path.HasHeater) === 'Y';
+            this.hasCooler = status.getState(path.HasCooler) === 'Y';
+            this.hasEvap = status.getState(path.HasEvap) === 'Y';
+            this.hasMultipleControllers = status.getState(path.HasMultipleControllers) === 'Y';
+            this.zones = status.getZones();
 
-            if (hasHeater) this.log('Found Heater');
-            if (hasCooler) this.log('Found Cooler');
-            if (hasEvap) this.log('Found Evaporative Cooler');
+            if (this.controllers === undefined) {
+                this.controllers = this.hasMultipleControllers ? this.zones.length : 1;
+            } else {
+                if (this.controllers > 1 && this.controllers !== this.zones.length) {
+                    this.log(`WARNING: Cannot have more controllers than there are zones. Setting controllers to ${this.zones.length}`);
+                    this.controllers = this.zones.length;
+                }
+            }
+            this.hasMultipleControllers = this.controllers > 1;
 
-            if (hasEvap) {
-                this.coolerValue = 'E';
+            this.map = new Mapper(this.hasMultipleControllers, this.maps, this.log, this.debug);
+   
+            // Log what was found
+            this.log('Discovered the following:')
+            if (this.hasHeater) this.log('* Heater');
+            if (this.hasCooler) this.log('* Cooler');
+            if (this.hasEvap) this.log('* Evaporative Cooler');
+            this.log(`* Controllers: ${this.controllers}`);
+            if (this.controllers === 1) {
+                this.log(`* Zones: ${this.zones.join()}`);
             }
 
-            // CurrentHeaterCoolerState - Valid States
-            let currentValidStates = [Characteristic.CurrentHeaterCoolerState.IDLE];
-            if (hasHeater) {
-                currentValidStates.push(Characteristic.CurrentHeaterCoolerState.HEATING);
-            }
-            if (hasCooler || hasEvap) {
-                currentValidStates.push(Characteristic.CurrentHeaterCoolerState.COOLING);
-            }
-
-            // TargetHeaterCoolerState - Valid States
-            let targetValidStates = [];
-            if (hasHeater) {
-                targetValidStates.push(Characteristic.TargetHeaterCoolerState.HEAT);
-            }
-            if (hasCooler || hasEvap) {
-                targetValidStates.push(Characteristic.TargetHeaterCoolerState.COOL);
-            }
-
-            for(let index in this.controllers) {
-                index = parseInt(index);
-                this.services.HeaterCooler[index]
-                    .getCharacteristic(Characteristic.CurrentHeaterCoolerState)
-                    .setProps({
-                        minValue: Math.min(...currentValidStates),
-                        maxValue: Math.max(...currentValidStates),
-                        validValues: currentValidStates
-                    })
-                    .updateValue(currentValidStates[0]);
-
-                this.services.HeaterCooler[index]
-                    .getCharacteristic(Characteristic.TargetHeaterCoolerState)
-                    .setProps({
-                        minValue: Math.min(...targetValidStates),
-                        maxValue: Math.max(...targetValidStates),
-                        validValues: targetValidStates
-                    })
-                    .updateValue(targetValidStates[0]);
-            }
-
-            // Zones
-            const path1 = Object.keys(status[1])[0];
-            for(const zone of ['A', 'B', 'C', 'D']) {
-                let enabled = this.getState([1, path1, 'CFG', `Z${zone}IS`], status) === 'Y';
-                let name = this.getState([0, 'SYST', 'CFG', `Z${zone}`], status).trim();
-                this.log(`Zone ${zone}: Name: '${name}', Enabled: ${enabled}`);
-            }
+            this.configureThermostats(status);
+            this.configureZoneSwitches(status);
+            this.configureFan(status);
+            this.configurePump(status);
+            this.configureAdvanceSwitch(status);
         }
         catch(error) {
             this.log(`ERROR: ${error.message}`);
         }
     }
 
+    configureThermostats(status) {
+        if (this.debug) this.log('RinnaiTouchPlatform.configureThermostats(status)');
+
+        for(let i = 0; i < 4; i++) {
+            let zone = String.fromCharCode(65 + i);
+            if (i < this.controllers) {
+                let name = this.hasMultipleControllers ? this.zones[i] : this.name;
+                this.addThermostat(zone, name, status);
+            } else {
+                this.removeAccessory(`Thermostat_${zone}`)
+            }
+        }
+    }
+
+    configureZoneSwitches(status) {
+        if (this.debug) this.log('RinnaiTouchPlatform.configureZoneSwitches(status)');
+
+        let hasZoneSwitches = this.showZoneSwitches && this.controllers === 1 && this.zones.length > 1;
+        for(let i = 0; i < 4; i++) {
+            let zone = String.fromCharCode(65 + i);
+            if (hasZoneSwitches && i < this.zones.length) {
+                this.addZoneSwitch(zone, this.zones[i], status);
+            } else {
+                this.removeAccessory(`ZoneSwitch_${zone}`);
+            }
+        }
+    }
+
+    configureFan(status) {
+        if (this.debug) this.log('RinnaiTouchPlatform.configureFan(status)');
+
+        if (this.showFan) {
+            this.addFan('Circulation Fan', status);
+        } else {
+            this.removeAccessory('Fan');
+        }
+    }
+
+    configurePump(status) {
+        if (this.debug) this.log('RinnaiTouchPlatform.configurePump(status)');
+
+        if (this.hasEvap) {
+            this.addPump('Evaporative Pump', status);
+        } else {
+            this.removeAccessory('Pump');
+        }
+    }
+
+    configureAdvanceSwitch(status) {
+        if (this.debug) this.log('RinnaiTouchPlatform.configureAdvanceSwitch(status)');
+
+        if (this.showAdvanceSwitch) {
+            this.addAdvanceSwitch('Advance Period', status);
+        } else {
+            this.removeAccessory('AdvanceSwitch');
+        }
+    }
+
+    addThermostat(zone, serviceName, status) {
+        if (this.debug) this.log(`RinnaiTouchPlatform.addThermostat('${zone}','${serviceName}', status)`);
+      
+        let accessoryKey = `Thermostat_${zone}`;
+        if (accessoryKey in this.accessories)
+            return;
+
+        let accessoryName = `Thermostat ${zone}`;
+        let uuid = UUIDGen.generate(accessoryName);
+        let accessory = new Accessory(accessoryName, uuid);
+        accessory.context.type = 'thermostat';
+        accessory.context.zone = zone;
+
+        this.setAccessoryInformation(accessory);
+
+        let service = accessory.addService(Service.Thermostat, serviceName);
+
+        service.setCharacteristic(Characteristic.TemperatureDisplayUnits, Characteristic.TemperatureDisplayUnits.CELSIUS);
+
+        let validStates = this.getValidCurrentHeatingCoolingStates();
+        service.getCharacteristic(Characteristic.CurrentHeatingCoolingState)
+            .setProps({
+                minValue: Math.min(...validStates),
+                maxValue: Math.max(...validStates),
+                validValues: validStates
+            })
+            .on('get', this.getCharacteristic.bind(this, zone, this.getCurrentHeatingCoolingState.bind(this)))
+            .updateValue(this.getCurrentHeatingCoolingState(status, zone));
+
+        validStates = this.getValidTargetHeatingCoolingStates();
+        service.getCharacteristic(Characteristic.TargetHeatingCoolingState)
+            .setProps({
+                minValue: Math.min(...validStates),
+                maxValue: Math.max(...validStates),
+                validValues: validStates
+            })
+            .on('get', this.getCharacteristic.bind(this, zone, this.getTargetHeatingCoolingState.bind(this)))
+            .on('set', this.setCharacteristic.bind(this, zone, this.setTargetHeatingCoolingState.bind(this)))
+            .updateValue(this.getTargetHeatingCoolingState(status));
+
+        service.getCharacteristic(Characteristic.CurrentTemperature)
+            .on('get', this.getCharacteristic.bind(this, zone, this.getCurrentTemperature.bind(this)))
+            .updateValue(this.getCurrentTemperature(status, zone));
+
+        service.getCharacteristic(Characteristic.TargetTemperature)
+            .setProps({
+                minValue: 8,
+                maxValue: 30,
+                minStep: 1,
+            })
+            .on('get', this.getCharacteristic.bind(this, zone, this.getTargetTemperature.bind(this)))
+            .on('set', this.setCharacteristic.bind(this, zone, this.setTargetTemperature.bind(this)))
+            .updateValue(this.getTargetTemperature(status, zone));
+
+        this.accessories[accessoryKey] = accessory;
+        this.api.registerPlatformAccessories("homebridge-rinnai-touch-plugin", "RinnaiTouchPlatform", [accessory]);
+    }
+
+    addZoneSwitch(zone, serviceName, status) {
+        if (this.debug) this.log(`RinnaiTouchPlatform.addZoneSwitch('${zone}','${serviceName}', status)`);
+      
+        let accessoryKey = `ZoneSwitch_${zone}`;
+        if (accessoryKey in this.accessories)
+            return;
+        
+        let accessoryName = `ZoneSwitch ${zone}`;
+        let uuid = UUIDGen.generate(accessoryName);
+        let accessory = new Accessory(accessoryName, uuid);
+        accessory.context.type = 'zoneswitch';
+        accessory.context.zone = zone;
+
+        this.setAccessoryInformation(accessory);
+
+        let service = accessory.addService(Service.Switch, serviceName);
+        service
+            .getCharacteristic(Characteristic.On)
+            .on('get', this.getCharacteristic.bind(this, zone, this.getZoneSwitchOn.bind(this)))
+            .on('set', this.setCharacteristic.bind(this, zone, this.setZoneSwitchOn.bind(this)))
+            .updateValue(this.getZoneSwitchOn(status, zone));
+
+        this.accessories[accessoryKey] = accessory;
+        this.api.registerPlatformAccessories("homebridge-rinnai-touch-plugin", "RinnaiTouchPlatform", [accessory]);
+    }
+
+    addFan(serviceName, status) {
+        if (this.debug) this.log(`RinnaiTouchPlatform.addFan('${serviceName}', status)`);
+
+        let accessoryKey = 'Fan';
+        if (accessoryKey in this.accessories)
+            return;
+        
+        let accessoryName = 'Fan';
+        let uuid = UUIDGen.generate(accessoryName);
+        let accessory = new Accessory(accessoryName, uuid);
+        accessory.context.type = 'fan';
+
+        this.setAccessoryInformation(accessory);
+
+        let service = accessory.addService(Service.Fan, serviceName);
+        service
+            .getCharacteristic(Characteristic.On)
+            .on('get', this.getCharacteristic.bind(this, '', this.getFanOn.bind(this)))
+            .on('set', this.setCharacteristic.bind(this, '', this.setFanOn.bind(this)))
+            .updateValue(this.getFanOn(status));
+
+        service
+            .getCharacteristic(Characteristic.RotationSpeed)
+            .on('get', this.getCharacteristic.bind(this, '', this.getFanRotationSpeed.bind(this)))
+            .on('set', this.setCharacteristic.bind(this, '', this.setFanRotationSpeed.bind(this)))
+            .updateValue(this.getFanRotationSpeed(status));
+
+        this.accessories[accessoryKey] = accessory;
+        this.api.registerPlatformAccessories("homebridge-rinnai-touch-plugin", "RinnaiTouchPlatform", [accessory]);
+    }
+
+    addPump(serviceName, status) {
+        if (this.debug) this.log(`RinnaiTouchPlatform.addPump('${serviceName}', status)`);
+
+        let accessoryKey = 'Pump';
+        if (accessoryKey in this.accessories)
+            return;
+        
+        let accessoryName = 'Pump';
+        let uuid = UUIDGen.generate(accessoryName);
+        let accessory = new Accessory(accessoryName, uuid);
+        accessory.context.type = 'pump';
+
+        this.setAccessoryInformation(accessory);
+
+        let service = accessory.addService(Service.Valve, serviceName);
+        service
+            .getCharacteristic(Characteristic.Active)
+            .on('get', this.getCharacteristic.bind(this, '', this.getPumpActive.bind(this)))
+            .on('set', this.setCharacteristic.bind(this, '', this.setPumpActive.bind(this)))
+            .updateValue(this.getPumpActive(status));
+
+        service
+            .getCharacteristic(Characteristic.InUse)
+            .on('get', this.getCharacteristic.bind(this, '', this.getPumpInUse.bind(this)))
+            .updateValue(this.getPumpInUse(status));
+
+        service
+            .getCharacteristic(Characteristic.ValveType)
+            .updateValue(Characteristic.ValveType.GENERIC_VALVE);
+
+        this.accessories[accessoryKey] = accessory;
+        this.api.registerPlatformAccessories("homebridge-rinnai-touch-plugin", "RinnaiTouchPlatform", [accessory]);
+    }
+
+    addAdvanceSwitch(serviceName, status) {
+        if (this.debug) this.log(`RinnaiTouchPlatform.addAdvanceSwitch('${serviceName}', status)`);
+      
+        let accessoryKey = 'AdvanceSwitch';
+        if (accessoryKey in this.accessories)
+            return;
+        
+        let accessoryName = 'AdvanceSwitch';
+        let uuid = UUIDGen.generate(accessoryName);
+        let accessory = new Accessory(accessoryName, uuid);
+        accessory.context.type = 'advanceswitch';
+
+        this.setAccessoryInformation(accessory);
+
+        let service = accessory.addService(Service.Switch, serviceName);
+        service
+            .getCharacteristic(Characteristic.On)
+            .on('get', this.getCharacteristic.bind(this, '', this.getAdvanceSwitchOn.bind(this)))
+            .on('set', this.setCharacteristic.bind(this, '', this.setAdvanceSwitchOn.bind(this)))
+            .updateValue(this.getAdvanceSwitchOn(status));
+
+        this.accessories[accessoryKey] = accessory;
+        this.api.registerPlatformAccessories("homebridge-rinnai-touch-plugin", "RinnaiTouchPlatform", [accessory]);
+    }
+
+    setAccessoryInformation(accessory) {
+        if (this.debug) this.log('RinnaiTouchPlatform.setAccessoryInformation(accessory)');
+
+        accessory.getService(Service.AccessoryInformation)
+            .setCharacteristic(Characteristic.Manufacturer, 'Rinnai')
+            .setCharacteristic(Characteristic.Model, 'N-BW2')
+            .setCharacteristic(Characteristic.SerialNumber, '0000'); 
+    }
+
+    removeAccessory(accessoryKey) {
+        if (this.debug) this.log(`RinnaiTouchPlatform.removeAccessory('${accessoryKey}')`);
+
+        if (!(accessoryKey in this.accessories))
+            return;
+    
+        let accessory = this.accessories[accessoryKey];
+        this.api.unregisterPlatformAccessories("homebridge-rinnai-touch-plugin", "RinnaiTouchPlatform", [accessory]);
+        delete this.accessories[accessoryKey];
+    }
+
+    getValidCurrentHeatingCoolingStates () {
+        if (this.debug) this.log('RinnaiTouchPlatform.getValidCurrentHeatingCoolingStates()');
+
+        let validStates = [Characteristic.CurrentHeatingCoolingState.OFF];
+        if (this.hasHeater) {
+            validStates.push(Characteristic.CurrentHeatingCoolingState.HEAT);
+        }
+        if (this.hasCooler || this.hasEvap) {
+            validStates.push(Characteristic.CurrentHeatingCoolingState.COOL);
+        }
+        return validStates;
+    }
+
+    getValidTargetHeatingCoolingStates() {
+        if (this.debug) this.log('RinnaiTouchPlatform.getValidTargetHeatingCoolingStates()');
+
+        let validStates = [Characteristic.TargetHeatingCoolingState.OFF];
+        if (this.hasHeater) {
+            validStates.push(Characteristic.TargetHeatingCoolingState.HEAT);
+        }
+        if (this.hasCooler || this.hasEvap) {
+            validStates.push(Characteristic.TargetHeatingCoolingState.COOL);
+        }
+        if (this.showAuto) {
+            validStates.push(Characteristic.TargetHeatingCoolingState.AUTO);
+        }
+
+        return validStates;
+    }
+
+    async getCharacteristic(zone, getValue, callback) {
+        try {
+            if (this.debug) this.log(`RinnaiTouchPlatform.getCharacteristic('${zone}', getValue, callback)`);
+
+            let status = await this.server.getStatus();
+            let value = getValue(status, zone);
+
+            callback(null, value);
+        }
+        catch(error) {
+            this.log(`ERROR: ${error.message}`);
+            callback(error);
+        }
+    }
+
+    getCurrentHeatingCoolingState(status, zone) {
+        if (this.debug) this.log(`RinnaiTouchPlatform.getCurrentHeatingCoolingState(status, '${zone}')`);
+
+        let path = this.map.getPath('Active', status.mode, zone);
+        let state = status.getState(path);
+
+        if (state === undefined || state === 'N')
+            return Characteristic.CurrentHeatingCoolingState.OFF;
+        
+        if (status.mode === 'HGOM')
+            return Characteristic.CurrentHeatingCoolingState.HEAT;
+
+        return Characteristic.CurrentHeatingCoolingState.COOL;
+    }
+
+    getTargetHeatingCoolingState(status) {
+        if (this.debug) this.log('RinnaiTouchPlatform.getTargetHeatingCoolingState(status)');
+
+        let path = this.map.getPath('State', status.mode);
+        let state = status.getState(path);
+
+        if (state === undefined || state !== 'N')
+            return Characteristic.TargetHeatingCoolingState.OFF;
+
+        if (status.mode === 'HGOM')
+            return Characteristic.TargetHeatingCoolingState.HEAT;
+        
+        return Characteristic.TargetHeatingCoolingState.COOL;
+    }
+
+    getCurrentTemperature(status, zone) {
+        if (this.debug) this.log(`RinnaiTouchPlatform.getCurrentTemperature(status,'${zone}')`);
+
+        let path = this.map.getPath('CurrentTemp', status.mode, zone);
+        let state = status.getState(path);
+
+        if (state === undefined || state === '999')
+            return null;
+
+        return parseFloat(state) / 10.0;
+    }
+
+    getTargetTemperature(status, zone) {
+        if (this.debug) this.log(`RinnaiTouchPlatform.getTargetTemperature(status,'${zone}')`);
+
+        let path = this.map.getPath('TargetTemp', status.mode, zone);
+        let state = status.getState(path);
+
+        if (state === undefined)
+            return null;
+
+        return parseFloat(state);
+    }
+
+    getZoneSwitchOn(status, zone) {
+        if (this.debug) this.log(`RinnaiTouchPlatform.getZoneSwitchOn(status,'${zone}')`);
+
+        let path = this.map.getPath('ZoneSwitch', status.mode, zone);
+        let state = status.getState(path);
+
+        if (state === undefined)
+            return false;
+
+        return state === 'Y';
+    }
+
+    getFanOn(status) {
+        if (this.debug) this.log(`RinnaiTouchPlatform.getFanOn(status)`);
+
+        let path = this.map.getPath('State', status.mode);
+        let state = status.getState(path);
+
+        if (state === undefined)
+            return false;
+
+        if ((status.mode !== 'ECOM' && state === 'Z') || (status.mode === 'ECOM' && state !== 'F'))
+            return true;
+
+        return false;
+    }
+
+    getFanRotationSpeed(status) {
+        if (this.debug) this.log(`RinnaiTouchPlatform.getFanRotationSpeed(status)`);
+
+        let path = this.map.getPath('FanSpeed', status.mode);
+        let state = status.getState(path);
+
+        if (state === undefined)
+            return 0;
+
+        return parseFloat(state) / 16.0 * 100.0;
+    }
+
+    getPumpActive(status) {
+        if (this.debug) this.log(`RinnaiTouchPlatform.getPumpActive(status)`);
+
+        let path = this.map.getPath('Pump', status.mode);
+        let state = status.getState(path);
+
+        if (state === undefined)
+            return Characteristic.Active.INACTIVE;
+
+        if (state === 'N')
+            return Characteristic.Active.ACTIVE;
+
+        return Characteristic.Active.INACTIVE;
+    }
+
+    getPumpInUse(status) {
+        if (this.debug) this.log(`RinnaiTouchPlatform.getPumpInUse(status)`);
+
+        const active = this.getPumpActive(status);
+
+        return active === Characteristic.Active.ACTIVE
+            ? Characteristic.InUse.IN_USE
+            : Characteristic.InUse.NOT_IN_USE;
+    }
+
+    getAdvanceSwitchOn(status) {
+        if (this.debug) this.log('RinnaiTouchPlatform.getAdvanceSwitchOn(status)');
+
+        let path = this.map.getPath('ScheduledPeriod', status.mode);
+        let state = status.getState(path);
+
+        if (state === undefined)
+            return false;
+
+        return state === 'A';
+    }
+
+    async setCharacteristic(zone, setValue, value, callback) {
+        try {
+            if (this.debug) this.log(`RinnaiTouchPlatform.setCharacteristic('${zone}',setValue,'${value}',callback)`);
+            
+            let status = await this.server.getStatus();
+            let commands = setValue(value, status, zone);
+
+            for(let command of commands) {
+                if (command !== undefined) {
+                    await this.server.sendCommand(command);
+                    this.commandSent = true;
+                }
+            }
+
+            callback();
+        }
+        catch(error) {
+            this.log(`ERROR: ${error.message}`);
+            callback(error);
+        }        
+    }
+
+    setTargetHeatingCoolingState(value, status, zone) {
+        if (this.debug) this.log(`RinnaiTouchPlatform.setTargetHeatingCoolingState(${value},status,'${zone}')`);
+
+        let commands = [];
+
+        let currentValue = this.getTargetHeatingCoolingState(status);
+        if (currentValue === value)
+            return commands;
+
+        let path = undefined;
+        let state = undefined;
+
+        if (currentValue === Characteristic.TargetHeatingCoolingState.OFF) {
+            path = this.map.getPath('State', status.mode);
+            commands.push(this.getCommand(path, 'N'));
+        }
+
+        switch(value) {
+            case Characteristic.TargetHeatingCoolingState.OFF:
+                path = this.map.getPath('State', status.mode);
+                commands.push(this.getCommand(path, 'F'));
+                break;
+            case Characteristic.TargetHeatingCoolingState.HEAT:
+                path = this.map.getPath('Mode');
+                commands.push(this.getCommand(path, 'H'));
+                break;
+            case Characteristic.TargetHeatingCoolingState.COOL:
+                path = this.map.getPath('Mode');
+                commands.push(this.getCommand(path, this.hasCooler ? 'C' : 'E'));
+                break;
+            case Characteristic.TargetHeatingCoolingState.AUTO:
+                path = this.map.getPath('Operation', status.mode, zone);
+                state = status.getState(path);
+                if (state !== 'A')
+                    commands.push(this.getCommand(path, 'A'));
+                path = this.map.getPath('ScheduledPeriod', status.mode, zone);
+                state = status.getState(path);
+                if (state !== 'N')
+                    commands.push(this.getCommand(path, 'N'));
+                break;
+        }
+
+        return commands;
+    }
+
+    setTargetTemperature(value, status, zone) {
+        if (this.debug) this.log(`RinnaiTouchPlatform.setTargetTemperature(${value},status,'${zone}')`);
+
+        let commands = [];
+
+        let currentValue = this.getTargetTemperature(status, zone);
+        if (currentValue === value)
+            return commands;
+
+        let path = this.map.getPath('TargetTemp', status.mode, zone);
+        let state = ('0' + value).slice(-2);
+        commands.push(this.getCommand(path, state));
+        
+        return commands;
+    }
+
+    setZoneSwitchOn(value, status, zone) {
+        if (this.debug) this.log(`RinnaiTouchPlatform.setZoneSwitchOn(${value},status,'${zone}')`);
+
+        let commands = [];
+
+        let currentValue = this.getZoneSwitchOn(status, zone);
+        if (currentValue === value)
+            return commands;
+
+        let path = this.map.getPath('ZoneSwitch', status.mode, zone);
+        let state = value ? 'Y' : 'N';
+        commands.push(this.getCommand(path, state));
+
+        return commands;
+    }
+
+    setFanOn(value, status) {
+        if (this.debug) this.log(`RinnaiTouchPlatform.setFanOn(${value},status)`);
+
+        let commands = [];
+
+        let currentValue = this.getFanOn(status);
+        if (currentValue === value)
+            return commands;
+
+        let path = this.map.getPath('State', status.mode);
+        let state = 'F';
+        if (value) {
+            state = status.mode === 'ECOM' ? 'N' : 'Z';
+        }
+        commands.push(this.getCommand(path, state));
+
+        return commands;
+    }
+
+    setFanRotationSpeed(value, status) {
+        if (this.debug) this.log(`RinnaiTouchPlatform.setFanRotationSpeed(${value},status)`);
+
+        let commands = [];
+
+        let currentValue = this.getFanRotationSpeed(status);
+        if (currentValue === value)
+            return commands;
+
+        let path = this.map.getPath('FanSpeed', status.mode);
+        let state = ('0' + Math.round(value / 100.0 * 16.0)).slice(-2)
+        
+        commands.push(this.getCommand(path, state));
+
+        return commands;    
+    }
+
+    setPumpActive(value, status) {
+        if (this.debug) this.log(`RinnaiTouchPlatform.setPumpActive(${value},status)`);
+
+        let commands = [];
+
+        let currentValue = this.getPumpActive(status);
+        if (currentValue === value)
+            return commands;
+
+        let path = this.map.getPath('Pump', status.mode);
+        let state = value === Characteristic.Active.ACTIVE ? 'N' : 'F';
+
+        commands.push(this.getCommand(path, state));
+
+        return commands;
+    }
+
+    setAdvanceSwitchOn(value, status) {
+        if (this.debug) this.log(`RinnaiTouchPlatform.setZoneSwitchOn(${value},status)`);
+
+        let commands = [];
+
+        let currentValue = this.getAdvanceSwitchOn(status);
+        if (currentValue === value)
+            return commands;
+
+        let path = this.map.getPath('ScheduledPeriod', status.mode);
+        let state = value ? 'A' : 'N';
+        commands.push(this.getCommand(path, state));
+
+        return commands;
+    }
+
+    getCommand(path, value) {
+        if (this.debug) this.log(`RinnaiTouchPlatform.getCommand('${path}','${value}')`);
+
+        if (path === undefined) {
+            this.log('ERROR: Cannot determine path for command');
+            return undefined;
+        }
+
+        if (value === undefined) {
+            this.log('ERROR: Unable to determine value for command');
+            return undefined;
+        }
+
+        path = path.split('.');
+        return `N000001{"${path[0]}":{"${path[1]}":{"${path[2]}":"${value}"}}}`;
+    }
+
     async postProcess() {
         try {
-            if (this.debug) this.log('RinnaiHeaterCooler.postProcess()');
+            if (this.debug) this.log('RinnaiTouchPlatform.postProcess()');
 
             // Clear the cached status
             this.server.status = undefined;
 
+            // Close TCP connection
+            await this.server.destroy();
+
             if (this.commandSent) {
                 this.commandSent = false;
                 // Wait a few seconds to allow status to catch up with commands sent
-                await new Promise((resolve) => {setTimeout(resolve, 4000)});
+                await this.server.delay(4000);
                 this.updateAll();
             }
         }
@@ -265,237 +854,77 @@ class RinnaiHeaterCooler {
 
     async updateAll() {
         try {
-            if (this.debug) this.log('RinnaiHeaterCooler.updateAll()');
+            if (this.debug) this.log('RinnaiTouchPlatform.updateAll()');
 
             let status = await this.server.getStatus();
-            this.currentMode = ('HGOM' in status[1]) ? 'heat' : 'cool';
-            
-            for(let index in this.maps) {
-                index = parseInt(index);
-                let map = this.maps[index];
-                for(let key in map[this.currentMode]) {
-                    const [service, characteristic] = key.split('_');
-    
-                    if (index >= this.services[service].length) {
-                        continue;
-                    }
-    
-                    let path = map[this.currentMode][key];
-                    let state = this.getState(path, status);
-                    let value = state === undefined
-                        ? this.getDefaultValue(key)
-                        : this.convertFromState(key, state);
-                
-                    this.services[service][index]
-                        .getCharacteristic(Characteristic[characteristic])
-                        .updateValue(value);
+
+            // Check if zones have changed
+            if (this.controllers === 1) {
+                if (this.zones.length !== status.getZones().length) {
+                    this.zones = status.getZones();
+                    this.configureZoneSwitches(status);
+                }
+            }
+
+            // Update values for all accesories
+            for(let accessoryKey in this.accessories) {
+                let accessory = this.accessories[accessoryKey];
+                let type = accessory.context.type;
+                let zone = accessory.context.zone;
+
+                if (type === 'thermostat') {
+                    let service = accessory.getService(Service.Thermostat);
+
+                    service.getCharacteristic(Characteristic.CurrentHeatingCoolingState)
+                        .updateValue(this.getCurrentHeatingCoolingState(status, zone));
+
+                    service.getCharacteristic(Characteristic.TargetHeatingCoolingState)
+                        .updateValue(this.getTargetHeatingCoolingState(status));
+
+                    service.getCharacteristic(Characteristic.CurrentTemperature)
+                        .updateValue(this.getCurrentTemperature(status, zone));
+
+                    service.getCharacteristic(Characteristic.TargetTemperature)
+                        .updateValue(this.getTargetTemperature(status, zone));
+                }
+
+                if (type === 'zoneswitch') {
+                    let service = accessory.getService(Service.Switch);
+
+                    service.getCharacteristic(Characteristic.On)
+                        .updateValue(this.getZoneSwitchOn(status, zone));
+                }
+
+                if (type === 'fan') {
+                    let service = accessory.getService(Service.Fan);
+
+                    service.getCharacteristic(Characteristic.On)
+                        .updateValue(this.getFanOn(status));
+
+                    service.getCharacteristic(Characteristic.RotationSpeed)
+                        .updateValue(this.getFanRotationSpeed(status));
+                }
+
+                if (type === 'pump') {
+                    let service = accessory.getService(Service.Valve);
+
+                    service.getCharacteristic(Characteristic.Active)
+                        .updateValue(this.getPumpActive(status));
+
+                    service.getCharacteristic(Characteristic.InUse)
+                        .updateValue(this.getPumpInUse(status));
+                }
+
+                if (type === 'advanceswitch') {
+                    let service = accessory.getService(Service.Switch);
+
+                    service.getCharacteristic(Characteristic.On)
+                        .updateValue(this.getAdvanceSwitchOn(status, zone));
                 }
             }
         }
         catch(error) {
             this.log(`ERROR: ${error.message}`);
         }        
-    }
-
-    async getCharacteristic(index, characteristic, callback) {
-        try {
-            if (this.debug) this.log(`RinnaiHeaterCooler.getCharacteristic(${index}, '${characteristic}')`);
-            let status = await this.server.getStatus();
-
-            this.currentMode = ('HGOM' in status[1]) ? 'heat' : 'cool';
-            let path = this.maps[index][this.currentMode][characteristic];
-            let state = this.getState(path, status);
-
-            let value = state === undefined
-                ? this.getDefaultValue(characteristic)
-                : this.convertFromState(characteristic, state);
-
-            callback(null, value);
-        }
-        catch(error) {
-            this.log(`ERROR: ${error.message}`);
-            callback(error);
-        }
-    }
-
-    getState(path, status) {
-        if (this.debug) this.log(`RinnaiHeaterCooler.getState('${path}', ${JSON.stringify(status)})`);
-
-        if (path === undefined) {
-            return undefined;
-        }
-
-        let state = undefined;
-        if (path[2] in status[path[0]][path[1]]) {
-            if (path[3] in status[path[0]][path[1]][path[2]]) {
-                state = status[path[0]][path[1]][path[2]][path[3]];
-            }
-        }
-        return state;
-    }
-
-    convertFromState(characteristic, state) {
-        if (this.debug) this.log(`RinnaiHeaterCooler.convertFromState('${characteristic}', '${state}')`);
-
-        switch(characteristic) {
-            case 'HeaterCooler_Active':
-                return state === 'N'
-                    ? Characteristic.Active.ACTIVE
-                    : Characteristic.Active.INACTIVE;
-            case 'HeaterCooler_CurrentHeaterCoolerState':
-                return state === 'N'
-                    ? Characteristic.CurrentHeaterCoolerState.IDLE
-                    : this.currentMode === 'heat'
-                        ? Characteristic.CurrentHeaterCoolerState.HEATING
-                        : Characteristic.CurrentHeaterCoolerState.COOLING;
-            case 'HeaterCooler_TargetHeaterCoolerState':
-                return state === 'H'
-                    ? Characteristic.TargetHeaterCoolerState.HEAT
-                    : Characteristic.TargetHeaterCoolerState.COOL;
-            case 'HeaterCooler_CurrentTemperature':
-                return parseFloat(state) / 10.0;
-            case 'HeaterCooler_HeatingThresholdTemperature':
-            case 'HeaterCooler_CoolingThresholdTemperature':
-                return parseFloat(state);
-            case 'ZoneSwitch_On':
-                return state === 'Y';
-            default:
-                throw new Error(`Invalid characteristic: ${characteristic}`);
-        }
-    }
-
-    getDefaultValue(characteristic) {
-        if (this.debug) this.log(`RinnaiHeaterCooler.getDefaultValue('${characteristic}')`);
-
-        switch(characteristic) {
-            case 'HeaterCooler_CurrentHeaterCoolerState':
-                return Characteristic.CurrentHeaterCoolerState.IDLE;
-            case 'HeaterCooler_CurrentTemperature':
-                return null;
-            case 'HeaterCooler_HeatingThresholdTemperature':
-            case 'HeaterCooler_CoolingThresholdTemperature':
-                return null;
-            case 'ZoneSwitch_On':
-                return false;
-            default:
-                throw new Error(`No default value for characteristic: ${characteristic}`);
-        }
-    }
-
-    async setCharacteristic(index, characteristic, value, callback) {
-        try {
-            if (this.debug) this.log(`RinnaiHeaterCooler.setCharacteristic(${index}, '${characteristic}', ${value})`);
-            
-            var command = this.constructCommand(index, characteristic, value);
-            await this.server.sendCommand(command);
-            this.commandSent = true;
-
-            callback();
-        }
-        catch(error) {
-            this.log(`ERROR: ${error.message}`);
-            callback(error);
-        }        
-    }
-
-    constructCommand(index, characteristic, value) {
-        if (this.debug) this.log(`RinnaiHeaterCooler.constructCommand(${index}, '${characteristic}', ${value})`);
-
-        if (characteristic === 'HeaterCooler_TargetHeaterCoolerState') {
-            this.currentMode = 'heat';
-            if (value === Characteristic.TargetHeaterCoolerState.COOL) {
-                this.currentMode = 'cool';
-            }
-        }
-
-        let path = this.maps[index][this.currentMode][characteristic];
-        let state = this.convertToState(characteristic, value);
-
-        return `N000001{"${path[1]}":{"${path[2]}":{"${path[3]}":"${state}"}}}`;
-    }
-
-    convertToState(characteristic, value) {
-        if (this.debug) this.log(`RinnaiHeaterCooler.convertToState('${characteristic}', ${value})`);
-
-        switch (characteristic) {
-            case 'HeaterCooler_Active':
-                return value === Characteristic.Active.ACTIVE ? 'N' : 'F';
-            case 'HeaterCooler_TargetHeaterCoolerState':
-                return value === Characteristic.TargetHeaterCoolerState.HEAT ? 'H' : this.coolerValue;
-            case 'HeaterCooler_HeatingThresholdTemperature':
-            case 'HeaterCooler_CoolingThresholdTemperature':
-                return ('0' + value).slice(-2);
-            case 'ZoneSwitch_On':
-                return value ? 'Y' : 'N';
-            default:
-                throw new Error(`Invalid characteristic: ${characteristic}`);
-        }
-    }
-
-    getMaps() {
-        if (this.debug) this.log('RinnaiHeaterCooler.getMaps()');
-        let maps = [];
-
-        for(let index in this.controllers) {
-            index = parseInt(index);
-            if (maps.length === index) {
-                maps.push(this.getMapDefault(index));
-            }
-            if ("map" in this.controllers[index]) {
-                this.applyMapOverride(maps[index], this.controllers[index].map);
-            }
-        }
-
-        for(let index in this.zones) {
-            index = parseInt(index);
-            if (maps.length === index) {
-                maps.push(this.getMapDefault(index));
-            }
-            if ("map" in this.zones[index]) {
-                this.applyMapOverride(maps[index], this.zones[index].map);
-            }
-        }
-
-        return maps;
-    }
-
-    getMapDefault(index) {
-        if (this.debug) this.log(`RinnaiHeaterCooler.getMapDefault(${index})`);
-
-        let zone = String.fromCharCode(65 + index); // A, B, C or D
-        let map = {
-            "heat": {
-                "HeaterCooler_Active": [1, "HGOM", "OOP", "ST"], // N/F
-                "HeaterCooler_CurrentHeaterCoolerState": [1, "HGOM", "GSS", "HC"], // Y/N
-                "HeaterCooler_TargetHeaterCoolerState":  [0, "SYST", "OSS", "MD"], // H/C/E
-                "HeaterCooler_CurrentTemperature": [1, "HGOM", "ZUS", "MT"], // nn
-                "HeaterCooler_HeatingThresholdTemperature": [1, "HGOM", "GSO", "SP"], // nn
-                "ZoneSwitch_On": [1, "HGOM", `Z${zone}O`, "UE"], // Y/N
-            },
-            "cool": {
-                "HeaterCooler_Active": [1, "CGOM", "OOP", "ST"],
-                "HeaterCooler_CurrentHeaterCoolerState": [1, "CGOM", "GSS", "CC"],
-                "HeaterCooler_TargetHeaterCoolerState":  [0, "SYST", "OSS", "MD"],
-                "HeaterCooler_CurrentTemperature": [1, "CGOM", "ZUS", "MT"],
-                "HeaterCooler_CoolingThresholdTemperature": [1, "CGOM", "GSO", "SP"],
-                "ZoneSwitch_On": [1, "CGOM", `Z${zone}O`, "UE"],
-            }        
-        };
-
-        return map;
-    }
-
-    applyMapOverride(map, override) {
-        if (this.debug) this.log(`RinnaiHeaterCooler.applyMapOverride(${JSON.stringify(map)}, ${JSON.stringify(override)})`);
-
-        for(let mode in override) {
-            for(let characteristic in override[mode]) {
-                if (override[mode][characteristic].length === 0) {
-                    delete map[mode][characteristic];
-                } else {
-                    map[mode][characteristic] = override[mode][characteristic];
-                }
-            }
-        }
     }
 }

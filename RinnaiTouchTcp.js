@@ -62,11 +62,8 @@ class RinnaiTouchTcp {
                 self.socket.removeAllListeners();
                 self.socket.destroy();
                 self.socket = null;
-                setTimeout(resolve, 1000); // Allow time to fully destroy socket
-            } else {
-                resolve();
-            }
-            
+            } 
+            resolve();
         });
     }
 
@@ -94,7 +91,7 @@ class RinnaiTouchTcp {
         let self = this;
         return new Promise((resolve, reject) => {
             try {
-                self.socket.write(data, async (error) => {
+                self.socket.write(data, (error) => {
                     if (error) {
                         reject(error);
                     } else {
