@@ -35,9 +35,9 @@ class RinnaiTouchServer {
 
     async sendCommand(command) {
         try {
-            if (this.debug) this.log(`RinnaiTouchServer.sendCommand('${command}')`);
-            await this.queue(command);
-            this.status = undefined;
+            if (this.debug) this.log(`RinnaiTouchServer.sendCommand('${JSON.stringify(command)}')`);
+            this.status = await this.queue(command);
+            return this.status;
         }
         catch(error) {
             this.log(`ERROR: ${error.message}`);
@@ -46,7 +46,7 @@ class RinnaiTouchServer {
 
     async process(command) {
         try {
-            if (this.debug) this.log(`RinnaiTouchServer.process('${command}')`);
+            if (this.debug) this.log(`RinnaiTouchServer.process(${JSON.stringify(command)})`);
             if (command === undefined && this.status !== undefined) {
                 return this.status;
             }
@@ -61,19 +61,41 @@ class RinnaiTouchServer {
             }
 
             if (command) {
-                await this.tcp.write(command);
-                await this.delay(500);
-                return;
+                await this.tcp.write(command.instruction);
+                status = await this.expectedState(command.expect);
             }
 
             if (status === undefined) {
                 status = await this.tcp.read();
             }
+
             return new RinnaiTouchStatus(status, this.options);
         }
         catch(error) {
             this.log(`ERROR: ${error.message}`);
         }
+    }
+
+    async expectedState(expect) {
+        let status = undefined;
+        try {
+            if (this.debug) this.log(`RinnaiTouchServer.expectedState(${JSON.stringify(expect)})`);
+            
+            const startTime = Date.now();
+            while(Date.now() - startTime < 10000) {
+                status = await this.tcp.read();
+                let rtStatusObj = new RinnaiTouchStatus(status);
+                if (rtStatusObj.getState(expect.path) === expect.state) {
+                    this.log(`State change succeeded: Took ${Date.now() - startTime} ms`);
+                    return status;
+                }
+            }
+            this.log(`WARNING: State change failed: Expected state "${expect.state}" at ${expect.path}`);
+        }
+        catch(error) {
+            this.log(`ERROR: ${error.message}`);
+        }
+        return status;
     }
 
     async connectionClosed() {

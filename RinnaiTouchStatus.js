@@ -19,9 +19,11 @@ class RinnaiTouchStatus {
         path = this.getPathArray(path);
 
         let state = undefined;
-        if (path[2] in this.status[path[0]][path[1]]) {
-            if (path[3] in this.status[path[0]][path[1]][path[2]]) {
-                state = this.status[path[0]][path[1]][path[2]][path[3]];
+        if (path[1] in this.status[path[0]]) {
+            if (path[2] in this.status[path[0]][path[1]]) {
+                if (path[3] in this.status[path[0]][path[1]][path[2]]) {
+                    state = this.status[path[0]][path[1]][path[2]][path[3]];
+                }
             }
         }
         return state;

@@ -1,5 +1,7 @@
+const crypto = require('crypto');
 const RinnaiTouchServer = require('./RinnaiTouchServer');
 const Mapper = require('./Mapper');
+const PluginVersion = require('./package.json').version;
 
 let Accessory, Service, Characteristic, UUIDGen;
 
@@ -76,87 +78,82 @@ class RinnaiTouchPlatform {
         this.log(`Configure ${accessory.displayName}`);
 
         accessory.reachable = true;
+        let zone;
+        let service;
+
+        this.setAccessoryInformation(accessory);
+
+        switch(accessory.context.type) {
+            case 'thermostat':
+                zone = accessory.context.zone;
+                service = accessory.getService(Service.Thermostat);
     
-        const type = accessory.context.type;
-
-        if (type === 'thermostat') {
-            let zone = accessory.context.zone;
-            let service = accessory.getService(Service.Thermostat);
-
-            service.getCharacteristic(Characteristic.CurrentHeatingCoolingState)
-                .on('get', this.getCharacteristic.bind(this, zone, this.getCurrentHeatingCoolingState.bind(this)));
-
-            service.getCharacteristic(Characteristic.TargetHeatingCoolingState)
-                .on('get', this.getCharacteristic.bind(this, zone, this.getTargetHeatingCoolingState.bind(this)))
-                .on('set', this.setCharacteristic.bind(this, zone, this.setTargetHeatingCoolingState.bind(this)))
-
-            service.getCharacteristic(Characteristic.CurrentTemperature)
-                .on('get', this.getCharacteristic.bind(this, zone, this.getCurrentTemperature.bind(this)))
-
-            service.getCharacteristic(Characteristic.TargetTemperature)
-                .on('get', this.getCharacteristic.bind(this, zone, this.getTargetTemperature.bind(this)))
-                .on('set', this.setCharacteristic.bind(this, zone, this.setTargetTemperature.bind(this)))
-
-            this.accessories[`Thermostat_${zone}`] = accessory;
-            return;
-        }
-
-        if (type === 'zoneswitch') {
-            let zone = accessory.context.zone;
-            let service = accessory.getService(Service.Switch);
-            
-            service
-                .getCharacteristic(Characteristic.On)
-                .on('get', this.getCharacteristic.bind(this, zone, this.getZoneSwitchOn.bind(this)))
-                .on('set', this.setCharacteristic.bind(this, zone, this.setZoneSwitchOn.bind(this)));
-
-            this.accessories[`ZoneSwitch_${zone}`] = accessory;
-            return;
-        }
-
-        if (type === 'fan') {
-            let service = accessory.getService(Service.Fan);
-
-            service
-                .getCharacteristic(Characteristic.On)
-                .on('get', this.getCharacteristic.bind(this, '', this.getFanOn.bind(this)))
-                .on('set', this.setCharacteristic.bind(this, '', this.setFanOn.bind(this)));
-
-            service
-                .getCharacteristic(Characteristic.RotationSpeed)
-                .on('get', this.getCharacteristic.bind(this, '', this.getFanRotationSpeed.bind(this)))
-                .on('set', this.setCharacteristic.bind(this, '', this.setFanRotationSpeed.bind(this)));
-
-            this.accessories['Fan'] = accessory;
-            return;
-        }
-
-        if (type === 'pump') {
-            let service = accessory.getService(Service.Valve);
-
-            service
-                .getCharacteristic(Characteristic.Active)
-                .on('get', this.getCharacteristic.bind(this, '', this.getPumpActive.bind(this)))
-                .on('set', this.setCharacteristic.bind(this, '', this.setPumpActive.bind(this)));
+                service.getCharacteristic(Characteristic.CurrentHeatingCoolingState)
+                    .on('get', this.getCharacteristic.bind(this, zone, this.getCurrentHeatingCoolingState.bind(this)));
     
-            service
-                .getCharacteristic(Characteristic.InUse)
-                .on('get', this.getCharacteristic.bind(this, '', this.getPumpInUse.bind(this)))
+                service.getCharacteristic(Characteristic.TargetHeatingCoolingState)
+                    .on('get', this.getCharacteristic.bind(this, zone, this.getTargetHeatingCoolingState.bind(this)))
+                    .on('set', this.setCharacteristic.bind(this, zone, this.setTargetHeatingCoolingState.bind(this)))
+    
+                service.getCharacteristic(Characteristic.CurrentTemperature)
+                    .on('get', this.getCharacteristic.bind(this, zone, this.getCurrentTemperature.bind(this)))
+    
+                service.getCharacteristic(Characteristic.TargetTemperature)
+                    .on('get', this.getCharacteristic.bind(this, zone, this.getTargetTemperature.bind(this)))
+                    .on('set', this.setCharacteristic.bind(this, zone, this.setTargetTemperature.bind(this)))
+    
+                this.accessories[`Thermostat_${zone}`] = accessory;
+                break;
+            case 'zoneswitch':
+                zone = accessory.context.zone;
+                service = accessory.getService(Service.Switch);
+                
+                service
+                    .getCharacteristic(Characteristic.On)
+                    .on('get', this.getCharacteristic.bind(this, zone, this.getZoneSwitchOn.bind(this)))
+                    .on('set', this.setCharacteristic.bind(this, zone, this.setZoneSwitchOn.bind(this)));
+    
+                this.accessories[`ZoneSwitch_${zone}`] = accessory;
+                break;
+            case 'fan':
+                service = accessory.getService(Service.Fan);
 
-            this.accessories['Pump'] = accessory;
-            return;
-        }
+                service
+                    .getCharacteristic(Characteristic.On)
+                    .on('get', this.getCharacteristic.bind(this, '', this.getFanOn.bind(this)))
+                    .on('set', this.setCharacteristic.bind(this, '', this.setFanOn.bind(this)));
+    
+                service
+                    .getCharacteristic(Characteristic.RotationSpeed)
+                    .on('get', this.getCharacteristic.bind(this, '', this.getFanRotationSpeed.bind(this)))
+                    .on('set', this.setCharacteristic.bind(this, '', this.setFanRotationSpeed.bind(this)));
+    
+                this.accessories['Fan'] = accessory;
+                break;
+            case 'pump':
+                service = accessory.getService(Service.Valve);
 
-        if (type === 'advanceswitch') {
-            let service = accessory.getService(Service.Switch);
+                service
+                    .getCharacteristic(Characteristic.Active)
+                    .on('get', this.getCharacteristic.bind(this, '', this.getPumpActive.bind(this)))
+                    .on('set', this.setCharacteristic.bind(this, '', this.setPumpActive.bind(this)));
+        
+                service
+                    .getCharacteristic(Characteristic.InUse)
+                    .on('get', this.getCharacteristic.bind(this, '', this.getPumpInUse.bind(this)))
+    
+                this.accessories['Pump'] = accessory;
+                break;
+            case 'advanceswitch':
+                service = accessory.getService(Service.Switch);
             
-            service
-                .getCharacteristic(Characteristic.On)
-                .on('get', this.getCharacteristic.bind(this, '', this.getAdvanceSwitchOn.bind(this)))
-                .on('set', this.setCharacteristic.bind(this, '', this.setAdvanceSwitchOn.bind(this)));
-
-            this.accessories['AdvanceSwitch'] = accessory;
-            return;
+                service
+                    .getCharacteristic(Characteristic.On)
+                    .on('get', this.getCharacteristic.bind(this, '', this.getAdvanceSwitchOn.bind(this)))
+                    .on('set', this.setCharacteristic.bind(this, '', this.setAdvanceSwitchOn.bind(this)));
+    
+                this.accessories['AdvanceSwitch'] = accessory;
+                break;
         }
     }
 
@@ -176,13 +173,15 @@ class RinnaiTouchPlatform {
                 HasHeater: 'SYST.AVM.HG',
                 HasCooler: 'SYST.AVM.CG',
                 HasEvap: 'SYST.AVM.EC',
-                HasMultipleControllers: 'SYST.CFG.MTSP'
+                HasMultipleControllers: 'SYST.CFG.MTSP',
+                FirmwareVersion: 'SYST.CFG.VR'
             };
 
             this.hasHeater = status.getState(path.HasHeater) === 'Y';
             this.hasCooler = status.getState(path.HasCooler) === 'Y';
             this.hasEvap = status.getState(path.HasEvap) === 'Y';
             this.hasMultipleControllers = status.getState(path.HasMultipleControllers) === 'Y';
+            this.firmwareVersion = status.getState(path.FirmwareVersion);
             this.zones = status.getZones();
 
             if (this.controllers === undefined) {
@@ -269,7 +268,7 @@ class RinnaiTouchPlatform {
     configureAdvanceSwitch(status) {
         if (this.debug) this.log('RinnaiTouchPlatform.configureAdvanceSwitch(status)');
 
-        if (this.showAdvanceSwitch) {
+        if (this.showAdvanceSwitch && this.controllers === 1) {
             this.addAdvanceSwitch('Advance Period', status);
         } else {
             this.removeAccessory('AdvanceSwitch');
@@ -387,6 +386,10 @@ class RinnaiTouchPlatform {
             .on('set', this.setCharacteristic.bind(this, '', this.setFanRotationSpeed.bind(this)))
             .updateValue(this.getFanRotationSpeed(status));
 
+        service
+            .getCharacteristic(Characteristic.RotationDirection)
+            .updateValue(Characteristic.RotationDirection.CLOCKWISE);
+
         this.accessories[accessoryKey] = accessory;
         this.api.registerPlatformAccessories("homebridge-rinnai-touch-plugin", "RinnaiTouchPlatform", [accessory]);
     }
@@ -456,7 +459,9 @@ class RinnaiTouchPlatform {
         accessory.getService(Service.AccessoryInformation)
             .setCharacteristic(Characteristic.Manufacturer, 'Rinnai')
             .setCharacteristic(Characteristic.Model, 'N-BW2')
-            .setCharacteristic(Characteristic.SerialNumber, '0000'); 
+            .setCharacteristic(Characteristic.SerialNumber, 
+                crypto.createHash('sha1').update(accessory.UUID).digest('hex'))
+            .setCharacteristic(Characteristic.FirmwareRevision, PluginVersion);
     }
 
     removeAccessory(accessoryKey) {
@@ -654,17 +659,20 @@ class RinnaiTouchPlatform {
 
             for(let command of commands) {
                 if (command !== undefined) {
-                    await this.server.sendCommand(command);
-                    this.commandSent = true;
+                    status = await this.server.sendCommand(command);
                 }
             }
 
+            setTimeout(() => {
+                this.updateAll(status);
+            }, 500);
+            
             callback();
         }
         catch(error) {
             this.log(`ERROR: ${error.message}`);
             callback(error);
-        }        
+        }
     }
 
     setTargetHeatingCoolingState(value, status, zone) {
@@ -678,6 +686,15 @@ class RinnaiTouchPlatform {
 
         let path = undefined;
         let state = undefined;
+        let expect = {};
+
+        // If not turning off and fan is on then turn off first
+        if (value !== Characteristic.TargetHeatingCoolingState.OFF) {
+            path = this.map.getPath('State', status.mode);
+            if (status.getState(path) === 'Z') {
+                commands.push(this.getCommand(path, 'F'));
+            }
+        }
 
         if (currentValue === Characteristic.TargetHeatingCoolingState.OFF) {
             path = this.map.getPath('State', status.mode);
@@ -691,11 +708,19 @@ class RinnaiTouchPlatform {
                 break;
             case Characteristic.TargetHeatingCoolingState.HEAT:
                 path = this.map.getPath('Mode');
-                commands.push(this.getCommand(path, 'H'));
+                expect = {
+                    path: this.map.getPath('HeatState'),
+                    state: 'N'
+                };
+                commands.push(this.getCommand(path, 'H', expect));
                 break;
             case Characteristic.TargetHeatingCoolingState.COOL:
                 path = this.map.getPath('Mode');
-                commands.push(this.getCommand(path, this.hasCooler ? 'C' : 'E'));
+                expect = {
+                    path: this.map.getPath(this.hasCooler ? 'CoolState' : 'EvapState'),
+                    state: 'N'
+                };
+                commands.push(this.getCommand(path, this.hasCooler ? 'C' : 'E', expect));
                 break;
             case Characteristic.TargetHeatingCoolingState.AUTO:
                 path = this.map.getPath('Operation', status.mode, zone);
@@ -754,6 +779,14 @@ class RinnaiTouchPlatform {
             return commands;
 
         let path = this.map.getPath('State', status.mode);
+
+        // If turning on fan and heater/cooling currently on then turn off first
+        if (value) {
+            if (status.getState(path) === 'N' && status.mode !== 'ECOM') {
+                commands.push(this.getCommand(path, 'F'));
+            }
+        }
+
         let state = 'F';
         if (value) {
             state = status.mode === 'ECOM' ? 'N' : 'Z';
@@ -813,21 +846,31 @@ class RinnaiTouchPlatform {
         return commands;
     }
 
-    getCommand(path, value) {
-        if (this.debug) this.log(`RinnaiTouchPlatform.getCommand('${path}','${value}')`);
+    getCommand(path, state, expect) {
+        if (this.debug) this.log(`RinnaiTouchPlatform.getCommand('${path}','${state}',${JSON.stringify(expect)})`);
 
         if (path === undefined) {
             this.log('ERROR: Cannot determine path for command');
             return undefined;
         }
 
-        if (value === undefined) {
-            this.log('ERROR: Unable to determine value for command');
+        if (state === undefined) {
+            this.log('ERROR: Unable to determine state for command');
             return undefined;
         }
 
+        if (expect === undefined) {
+            expect = {
+                path: path,
+                state: state
+            }
+        }
+
         path = path.split('.');
-        return `N000001{"${path[0]}":{"${path[1]}":{"${path[2]}":"${value}"}}}`;
+        return {
+            instruction: `N000001{"${path[0]}":{"${path[1]}":{"${path[2]}":"${state}"}}}`,
+            expect: expect
+        };
     }
 
     async postProcess() {
@@ -839,92 +882,80 @@ class RinnaiTouchPlatform {
 
             // Close TCP connection
             await this.server.destroy();
-
-            if (this.commandSent) {
-                this.commandSent = false;
-                // Wait a few seconds to allow status to catch up with commands sent
-                await this.server.delay(4000);
-                this.updateAll();
-            }
         }
         catch(error) {
             this.log(`ERROR: ${error.message}`);
         }
     }
 
-    async updateAll() {
-        try {
-            if (this.debug) this.log('RinnaiTouchPlatform.updateAll()');
+    updateAll(status) {
+        if (this.debug) this.log('RinnaiTouchPlatform.updateAll(status)');
 
-            let status = await this.server.getStatus();
-
-            // Check if zones have changed
-            if (this.controllers === 1) {
-                if (this.zones.length !== status.getZones().length) {
-                    this.zones = status.getZones();
-                    this.configureZoneSwitches(status);
-                }
+        // Check if zones have changed
+        if (this.controllers === 1) {
+            if (this.zones.length !== status.getZones().length) {
+                this.zones = status.getZones();
+                this.configureZoneSwitches(status);
             }
+        }
 
-            // Update values for all accesories
-            for(let accessoryKey in this.accessories) {
-                let accessory = this.accessories[accessoryKey];
-                let type = accessory.context.type;
-                let zone = accessory.context.zone;
+        // Update values for all accesories
+        for(let accessoryKey in this.accessories) {
+            let accessory = this.accessories[accessoryKey];
+            let type = accessory.context.type;
+            let zone = accessory.context.zone;
+            let service;
 
-                if (type === 'thermostat') {
-                    let service = accessory.getService(Service.Thermostat);
+            switch(type) {
+                case 'thermostat':
+                    service = accessory.getService(Service.Thermostat);
 
                     service.getCharacteristic(Characteristic.CurrentHeatingCoolingState)
                         .updateValue(this.getCurrentHeatingCoolingState(status, zone));
-
+    
                     service.getCharacteristic(Characteristic.TargetHeatingCoolingState)
                         .updateValue(this.getTargetHeatingCoolingState(status));
-
+    
                     service.getCharacteristic(Characteristic.CurrentTemperature)
                         .updateValue(this.getCurrentTemperature(status, zone));
-
+    
                     service.getCharacteristic(Characteristic.TargetTemperature)
                         .updateValue(this.getTargetTemperature(status, zone));
-                }
-
-                if (type === 'zoneswitch') {
-                    let service = accessory.getService(Service.Switch);
+                    break;
+                case 'zoneswitch':
+                    service = accessory.getService(Service.Switch);
 
                     service.getCharacteristic(Characteristic.On)
                         .updateValue(this.getZoneSwitchOn(status, zone));
-                }
-
-                if (type === 'fan') {
-                    let service = accessory.getService(Service.Fan);
+                    break;
+                case 'fan':
+                    service = accessory.getService(Service.Fan);
 
                     service.getCharacteristic(Characteristic.On)
                         .updateValue(this.getFanOn(status));
 
                     service.getCharacteristic(Characteristic.RotationSpeed)
                         .updateValue(this.getFanRotationSpeed(status));
-                }
-
-                if (type === 'pump') {
-                    let service = accessory.getService(Service.Valve);
+                    
+                    service.getCharacteristic(Characteristic.RotationDirection)
+                        .updateValue(Characteristic.RotationDirection.CLOCKWISE);
+                    break;
+                case 'pump':
+                    service = accessory.getService(Service.Valve);
 
                     service.getCharacteristic(Characteristic.Active)
                         .updateValue(this.getPumpActive(status));
 
                     service.getCharacteristic(Characteristic.InUse)
                         .updateValue(this.getPumpInUse(status));
-                }
-
-                if (type === 'advanceswitch') {
-                    let service = accessory.getService(Service.Switch);
+                    break;
+                case 'advanceswitch':
+                    service = accessory.getService(Service.Switch);
 
                     service.getCharacteristic(Characteristic.On)
                         .updateValue(this.getAdvanceSwitchOn(status, zone));
-                }
+                    break;
             }
         }
-        catch(error) {
-            this.log(`ERROR: ${error.message}`);
-        }        
     }
 }

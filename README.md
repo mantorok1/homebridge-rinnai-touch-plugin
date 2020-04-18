@@ -7,8 +7,8 @@ Functions available:
 * Displaying the current state of the device
 * Switching the device to Off, Heating or Cooling modes
 * Displaying the current temperature
-* Setting the desired temperate
-* Switched zones On and Off
+* Setting the desired temperature
+* Switching zones On and Off
 * Switching the circulation fan On and Off as well as setting rotation speed
 * Turning the water pump On and Off (for Evaporative Cooling only)
 * Advancing to the next period of the Programme Schedule. (eg. Leave -> Return)
@@ -23,7 +23,7 @@ This plugin will add one or more accessories to the Home app depending on your R
 |Zone Switch|Displays if the zone is currently On or Off and allows you to change it. Zone Switches will be added if you have 1 controller with more than 1 zone|
 |Fan|Displays the current state and speed setting of the circulation fan. Allows you to turn it Off or set the rotation speed<br/>NOTE: The fan can only be used when the Thermostat is in the `OFF` mode or `COOL` mode for Evaporative Cooling|
 |Pump|Displays the current state of the pump if you have Evaporative Cooling. Allows you to turn it On or Off<br/>NOTE: The pump can only be used when the Thermostat is in `COOL` mode.|
-|Advance Period Switch|Displays if the Period of the Programme Schedule has been advanced and allows you to change it|
+|Advance Period Switch|Displays if the Period of the Programme Schedule has been advanced and allows you to change it<br/>NOTE: Only available for systems with a single controller|
 
 ## Installation
 Note: This plugin requires homebridge to be installed first.
@@ -134,6 +134,7 @@ where `{zone}` will be replaced by the appropriate zone (ie. A for 1st zone, B f
 ## Version History
 |Version|Description|
 |-|-|
+|2.1.0|<ul><li>Added unique serial number for each accessory</li><li>Set fan rotation direction</li><li>Automatically switch fan off when switching Heater/Cooler on and vice versa</li><li>Stability improvements when sending commands to WiFi module</li><li>Remove Advance Period switch for systems with multiple controllers</li></ul>|
 |2.0.0|<ul><li>Added new accessories for Fan, Pump & Advance Period switch</li><li>Use Homebridge dynamic platform instead of single accessory</li><li>Use Thermostat service instead of HeaterCooler</li><li>Zero config option</li><li>Better support for evaporative cooling</li><li>Revamped mapping overrides</li></ul>|
 |1.2.0|<ul><li>Support for multiple controllers</li></ul>|
 |1.1.0|<ul><li>Automatic detection of heater/cooler</li><li>Map overrides (see 'Map Overrides' section)</li><li>Scheduled refreshes</li><li>Partial evaporative cooling support</li><li>Retry TCP connection (useful when router is rebooted and IP address changes)</li><li>Stability improvements</li></ul>|
@@ -146,3 +147,4 @@ where `{zone}` will be replaced by the appropriate zone (ie. A for 1st zone, B f
 * Evaporative cooling mode was not able to be tested so may not function properly.
 * Due to the lag between sending a command to the module and it correctly reflecting that command in it's status there is a delay of a few seconds before the Home app shows the correct values. eg. When switching from HEAT to COOL mode some details such as the desired temperature will take a few seconds before the current value is shown.
 * If the number of zones is different between the `Heat` and `Cool` modes the Zone Switches are dynamically added or removed as necessary. The downside of this is that you will loose any changes you made to the accessory (eg. name).
+* Sometimes when fan is On and attempting to switch to `Heat` or `Cool` mode the system will switch back to the `Off` state

@@ -18,7 +18,7 @@ class Mapper {
             key = `${this.modes[mode]}${key}`;
         }
         
-        let path = this.map[key];
+        let path = this.map[key]; 
 
         if (zone !== undefined)
             path = path.replace('{zone}', zone);
@@ -32,9 +32,12 @@ class Mapper {
         // Default - Single controller
         var map = {
             Mode: 'SYST.OSS.MD',                    // H, C, E
+            SetTime: 'SYST.STM.TM',                 // or SYST.OSS.TM ?
+            SetDay: 'SYST.STM.DY',
 
             HeatState: 'HGOM.OOP.ST',               // oN, ofF, fanZ
             HeatOperation: 'HGOM.GSO.OP',           // Auto, Manual
+            HeatScheduledState: 'HGOM.GSS.AT',      // Wake, Leave, Return, Presleep?, Sleep
             HeatScheduledPeriod: 'HGOM.GSO.AO',     // Now, Advance, Override
             HeatActive: 'HGOM.Z{zone}S.AE',         // Y, N
             HeatCurrentTemp: 'HGOM.Z{zone}S.MT',    // nnn
@@ -44,6 +47,7 @@ class Mapper {
 
             CoolState: 'CGOM.OOP.ST',               // oN, ofF, fanZ
             CoolOperation: 'CGOM.GSO.OP',           // Auto, Manual
+            CoolScheduledState: 'CGOM.GSS.AT',      // Wake, Leave, Return, Presleep?, Sleep
             CoolScheduledPeriod: 'CGOM.GSO.AO',     // Now, Advance, Override
             CoolActive: 'CGOM.Z{zone}S.AE',         // Y, N
             CoolCurrentTemp: 'CGOM.Z{zone}S.MT',    // nnn
@@ -53,6 +57,7 @@ class Mapper {
 
             EvapState: 'ECOM.GSO.SW',               // oN, ofF
             EvapOperation: 'ECOM.GSO.OP',           // Auto, Manual
+            EvapScheduledState: 'ECOM.GSS.AT',      // Wake, Leave, Return, Presleep?, Sleep
             EvapScheduledPeriod: 'ECOM.GSO.AO',     // Now, Advance, Override
             EvapActive: 'ECOM.GSS.ZUAE',            // Y, N
             EvapCurrentTemp: 'ECOM.GSS.MT',         // nnn
@@ -64,10 +69,12 @@ class Mapper {
         // Multiple controllers
         if (hasMultipleControllers) {
             map.HeatOperation = 'HGOM.Z{zone}O.OP';
-            map.HeatScheduledPeriod = 'HGOM.ZUO.AO';
+            map.HeatScheduledState = 'HGOM.Z{zone}S.AT',
+            map.HeatScheduledPeriod = 'HGOM.Z{zone}O.AO';
             map.HeatTargetTemp = 'HGOM.Z{zone}O.SP';
             map.CoolOperation = 'CGOM.Z{zone}O.OP';
-            map.CoolScheduleMode = 'CGOM.ZUO.AO';
+            map.CoolScheduledState = 'CGOM.Z{zone}S.AT',
+            map.CoolScheduledMode = 'CGOM.Z{zone}O.AO';
             map.CoolTargetTemp = 'CGOM.Z{zone}O.SP';
         }
 
