@@ -3,11 +3,12 @@ const RinnaiTouchStatus = require('./RinnaiTouchStatus');
 const cq = require('concurrent-queue');
 
 class RinnaiTouchServer {
-    constructor(options = {}) {
-        this.options = options;
-        this.log = options.log || console.log;
-        this.debug = options.debug === true;
-        this.tcp = new RinnaiTouchTcp(options);
+    constructor(debug, log, timeout = 5000) {
+        this.debug = debug;
+        this.log = log;
+        this.debug(this.constructor.name, undefined, 'debug', 'log', timeout);
+
+        this.tcp = new RinnaiTouchTcp(debug, timeout);
         this.status = undefined;
 
         this.tcpStates = {
@@ -23,8 +24,8 @@ class RinnaiTouchServer {
     }
 
     async getStatus() {
+        this.debug(this.constructor.name, 'getStatus');
         try {
-            if (this.debug) this.log('RinnaiTouchServer.getStatus()');
             this.status = await this.queue();
             return this.status;
         }
@@ -34,8 +35,8 @@ class RinnaiTouchServer {
     }
 
     async sendCommand(command) {
+        this.debug(this.constructor.name, 'sendCommand', JSON.stringify(command));
         try {
-            if (this.debug) this.log(`RinnaiTouchServer.sendCommand('${JSON.stringify(command)}')`);
             this.status = await this.queue(command);
             return this.status;
         }
@@ -45,8 +46,8 @@ class RinnaiTouchServer {
     }
 
     async process(command) {
+        this.debug(this.constructor.name, 'process', JSON.stringify(command));
         try {
-            if (this.debug) this.log(`RinnaiTouchServer.process(${JSON.stringify(command)})`);
             if (command === undefined && this.status !== undefined) {
                 return this.status;
             }
@@ -69,7 +70,7 @@ class RinnaiTouchServer {
                 status = await this.tcp.read();
             }
 
-            return new RinnaiTouchStatus(status, this.options);
+            return new RinnaiTouchStatus(status, this.debug);
         }
         catch(error) {
             this.log(`ERROR: ${error.message}`);
@@ -77,14 +78,13 @@ class RinnaiTouchServer {
     }
 
     async expectedState(expect) {
+        this.debug(this.constructor.name, 'expectedState', JSON.stringify(expect));
         let status = undefined;
         try {
-            if (this.debug) this.log(`RinnaiTouchServer.expectedState(${JSON.stringify(expect)})`);
-            
             const startTime = Date.now();
             while(Date.now() - startTime < 10000) {
                 status = await this.tcp.read();
-                let rtStatusObj = new RinnaiTouchStatus(status);
+                let rtStatusObj = new RinnaiTouchStatus(status, this.debug);
                 if (rtStatusObj.getState(expect.path) === expect.state) {
                     this.log(`State change succeeded: Took ${Date.now() - startTime} ms`);
                     return status;
@@ -99,7 +99,7 @@ class RinnaiTouchServer {
     }
 
     async connectionClosed() {
-        if (this.debug) this.log('RinnaiTouchServer.connectionClosed()');
+        this.debug(this.constructor.name, 'connectionClosed');
 
         for(let i = 0; i < 10; i++) {
             await this.delay(500);
@@ -111,7 +111,7 @@ class RinnaiTouchServer {
     }
 
     async connect(limit = 3, ms = 1000) {
-        if (this.debug) this.log(`RinnaiTouchServer.connect(${limit}, ${ms})`);
+        this.debug(this.constructor.name, 'connect', limit, ms);
 
         for(let i = 1; i <= limit; i++) {
             try {
@@ -124,11 +124,11 @@ class RinnaiTouchServer {
             } 
         }
 
-        throw new error('Unable to connect to Rinnai Touch Module');
+        throw new Error('Unable to connect to Rinnai Touch Module');
     }
 
-    async destroy(ms = 1100) {
-        if (this.debug) this.log('RinnaiTouchServer.destroy()');
+    async destroy(ms) {
+        this.debug(this.constructor.name, 'destroy', ms);
 
         try {
             this.tcpState = this.tcpStates.CLOSING;

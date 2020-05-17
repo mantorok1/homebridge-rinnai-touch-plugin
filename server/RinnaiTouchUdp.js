@@ -1,15 +1,17 @@
 const dgram = require('dgram');
 
 class RinnaiTouchUdp {
-    constructor(options) {
-        this.log = options.log || console.log;
-        this.debug = options.debug === true;
-        this.timeout = options.timeout || 5000;
+    constructor(debug, timeout = 5000) {
+        this.debug = debug;
+        this.debug(this.constructor.name, undefined, 'debug', timeout);
+
+        this.timeout = timeout;
         this.port = 50000;
     }
 
     getAddress() {
-        if (this.debug) this.log('RinnaiTouchUdp.getAddress()');
+        this.debug(this.constructor.name, 'getAddress');
+
         let self = this;
         return new Promise((resolve, reject) => {
             let socket = dgram.createSocket('udp4');
