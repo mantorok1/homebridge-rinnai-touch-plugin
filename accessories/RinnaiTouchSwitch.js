@@ -5,7 +5,7 @@ let Accessory, Service, Characteristic, UUIDGen
 class RinnaiTouchSwitch extends RinnaiTouchAccessory {
     constructor(platform) {
         super(platform);
-        this.debug('RinnaiTouchSwitch', undefined, 'platform');
+        this.log.debug('RinnaiTouchSwitch', undefined, 'platform');
 
         Accessory = platform.Accessory;
         Service = platform.Service; 
@@ -14,7 +14,7 @@ class RinnaiTouchSwitch extends RinnaiTouchAccessory {
     }
 
     init(name, status, zone) {
-        this.debug('RinnaiTouchSwitch', 'init', name, 'status', zone);
+        this.log.debug('RinnaiTouchSwitch', 'init', name, 'status', zone);
         
         let accessoryName = zone ? `${this.name} ${zone}` : this.name;
         let uuid = UUIDGen.generate(accessoryName);

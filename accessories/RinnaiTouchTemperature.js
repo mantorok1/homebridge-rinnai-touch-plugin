@@ -5,19 +5,16 @@ let Accessory, Service, Characteristic, UUIDGen;
 class RinnaiTouchTemperature extends RinnaiTouchAccessory {
     constructor(platform) {
         super(platform);
-        this.debug('RinnaiTouchTemperature', undefined, 'platform');
+        this.log.debug('RinnaiTouchTemperature', undefined, 'platform');
 
         Accessory = platform.Accessory;
         Service = platform.Service; 
         Characteristic = platform.Characteristic;
         UUIDGen = platform.UUIDGen;
-
-        this.config = platform.config;
-        this.showAuto = platform.showAuto;
     }
 
     init(name, status, zone) {
-        this.debug('RinnaiTouchTemperature', 'init', name, 'status', zone);
+        this.log.debug('RinnaiTouchTemperature', 'init', name, 'status', zone);
 
         let accessoryName = `${this.name} ${zone}`;
         let uuid = UUIDGen.generate(accessoryName);
@@ -29,7 +26,7 @@ class RinnaiTouchTemperature extends RinnaiTouchAccessory {
     }
 
     setEventHandlers(service) {
-        this.debug('RinnaiTouchTemperature', 'setEventHandlers', 'service');
+        this.log.debug('RinnaiTouchTemperature', 'setEventHandlers', 'service');
 
         service.getCharacteristic(Characteristic.CurrentTemperature)
             .on('get', this.getCharacteristicValue.bind(this, this.getCurrentTemperature.bind(this)));
@@ -39,7 +36,7 @@ class RinnaiTouchTemperature extends RinnaiTouchAccessory {
     }
 
     getCurrentTemperature(status) {
-        this.debug('RinnaiTouchTemperature', 'getCurrentTemperature', 'status');
+        this.log.debug('RinnaiTouchTemperature', 'getCurrentTemperature', 'status');
 
         let path = this.map.getPath('CurrentTemp', status.mode, this.accessory.context.zone);
         let state = status.getState(path);
@@ -51,7 +48,7 @@ class RinnaiTouchTemperature extends RinnaiTouchAccessory {
     }
 
     getTemperatureUnits(status) {
-        this.debug('RinnaiTouchTemperature', 'getTemperatureUnits', 'status');
+        this.log.debug('RinnaiTouchTemperature', 'getTemperatureUnits', 'status');
 
         let path = this.map.getPath('TempUnits');
         let state = status.getState(path);
@@ -62,7 +59,7 @@ class RinnaiTouchTemperature extends RinnaiTouchAccessory {
     }
 
     updateValues(status, service) {
-        this.debug('RinnaiTouchTemperature', 'updateValues', 'status', 'service');
+        this.log.debug('RinnaiTouchTemperature', 'updateValues', 'status', 'service');
 
         service.getCharacteristic(Characteristic.CurrentTemperature)
             .updateValue(this.getCurrentTemperature(status));

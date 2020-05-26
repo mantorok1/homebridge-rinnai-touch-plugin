@@ -5,7 +5,7 @@ let Accessory, Service, Characteristic, UUIDGen;
 class RinnaiTouchThermostat extends RinnaiTouchTemperature {
     constructor(platform) {
         super(platform);
-        this.debug(this.constructor.name, undefined, 'platform');
+        this.log.debug(this.constructor.name, undefined, 'platform');
 
         this.name = 'Thermostat';
 
@@ -16,7 +16,7 @@ class RinnaiTouchThermostat extends RinnaiTouchTemperature {
     }
 
     init(name, status, zone) {
-        this.debug(this.constructor.name, 'init', name, 'status', zone);
+        this.log.debug(this.constructor.name, 'init', name, 'status', zone);
         
         super.init(name, status, zone)
 
@@ -50,29 +50,29 @@ class RinnaiTouchThermostat extends RinnaiTouchTemperature {
     }
 
     getValidCurrentHeatingCoolingStates () {
-        this.debug(this.constructor.name, 'getValidCurrentHeatingCoolingStates');
+        this.log.debug(this.constructor.name, 'getValidCurrentHeatingCoolingStates');
 
         let validStates = [Characteristic.CurrentHeatingCoolingState.OFF];
-        if (this.config.hasHeater) {
+        if (this.settings.hasHeater) {
             validStates.push(Characteristic.CurrentHeatingCoolingState.HEAT);
         }
-        if (this.config.hasCooler || this.config.hasEvap) {
+        if (this.settings.hasCooler || this.settings.hasEvap) {
             validStates.push(Characteristic.CurrentHeatingCoolingState.COOL);
         }
         return validStates;
     }
 
     getValidTargetHeatingCoolingStates() {
-        this.debug(this.constructor.name, 'getValidTargetHeatingCoolingStates');
+        this.log.debug(this.constructor.name, 'getValidTargetHeatingCoolingStates');
 
         let validStates = [Characteristic.TargetHeatingCoolingState.OFF];
-        if (this.config.hasHeater) {
+        if (this.settings.hasHeater) {
             validStates.push(Characteristic.TargetHeatingCoolingState.HEAT);
         }
-        if (this.config.hasCooler || this.config.hasEvap) {
+        if (this.settings.hasCooler || this.settings.hasEvap) {
             validStates.push(Characteristic.TargetHeatingCoolingState.COOL);
         }
-        if (this.showAuto) {
+        if (this.settings.showAuto) {
             validStates.push(Characteristic.TargetHeatingCoolingState.AUTO);
         }
 
@@ -80,7 +80,7 @@ class RinnaiTouchThermostat extends RinnaiTouchTemperature {
     }
 
     setEventHandlers() {
-        this.debug(this.constructor.name, 'setEventHandlers');
+        this.log.debug(this.constructor.name, 'setEventHandlers');
 
         let service = this.accessory.getService(Service.Thermostat);
         super.setEventHandlers(service);
@@ -98,7 +98,7 @@ class RinnaiTouchThermostat extends RinnaiTouchTemperature {
     }
 
     getCurrentHeatingCoolingState(status) {
-        this.debug(this.constructor.name, 'getCurrentHeatingCoolingState', 'status');
+        this.log.debug(this.constructor.name, 'getCurrentHeatingCoolingState', 'status');
 
         let path = this.map.getPath('Active', status.mode, this.accessory.context.zone);
         let state = status.getState(path);
@@ -113,7 +113,7 @@ class RinnaiTouchThermostat extends RinnaiTouchTemperature {
     }
 
     getTargetHeatingCoolingState(status) {
-        this.debug(this.constructor.name, 'getTargetHeatingCoolingState', 'status');
+        this.log.debug(this.constructor.name, 'getTargetHeatingCoolingState', 'status');
 
         let path = this.map.getPath('State', status.mode);
         let state = status.getState(path);
@@ -128,7 +128,7 @@ class RinnaiTouchThermostat extends RinnaiTouchTemperature {
     }
 
     getTargetTemperature(status) {
-        this.debug(this.constructor.name, 'getTargetTemperature', 'status');
+        this.log.debug(this.constructor.name, 'getTargetTemperature', 'status');
 
         let path = this.map.getPath('TargetTemp', status.mode, this.accessory.context.zone);
         let state = status.getState(path);
@@ -140,7 +140,7 @@ class RinnaiTouchThermostat extends RinnaiTouchTemperature {
     }
 
     setTargetHeatingCoolingState(value, status) {
-        this.debug(this.constructor.name, 'setTargetHeatingCoolingState', value, 'status');
+        this.log.debug(this.constructor.name, 'setTargetHeatingCoolingState', value, 'status');
 
         let commands = [];
 
@@ -181,10 +181,10 @@ class RinnaiTouchThermostat extends RinnaiTouchTemperature {
             case Characteristic.TargetHeatingCoolingState.COOL:
                 path = this.map.getPath('Mode');
                 expect = {
-                    path: this.map.getPath(this.config.hasCooler ? 'CoolState' : 'EvapState'),
+                    path: this.map.getPath(this.settings.hasCooler ? 'CoolState' : 'EvapState'),
                     state: 'N'
                 };
-                commands.push(this.getCommand(path, this.config.hasCooler ? 'C' : 'E', expect));
+                commands.push(this.getCommand(path, this.settings.hasCooler ? 'C' : 'E', expect));
                 break;
             case Characteristic.TargetHeatingCoolingState.AUTO:
                 path = this.map.getPath('Operation', status.mode, this.accessory.context.zone);
@@ -202,7 +202,7 @@ class RinnaiTouchThermostat extends RinnaiTouchTemperature {
     }
 
     setTargetTemperature(value, status) {
-        this.debug(this.constructor.name, 'setTargetTemperature', value, 'status');
+        this.log.debug(this.constructor.name, 'setTargetTemperature', value, 'status');
 
         let commands = [];
 
@@ -218,7 +218,7 @@ class RinnaiTouchThermostat extends RinnaiTouchTemperature {
     }
 
     updateValues(status) {
-        this.debug(this.constructor.name, 'updateValues', 'status');
+        this.log.debug(this.constructor.name, 'updateValues', 'status');
         
         let service = this.accessory.getService(Service.Thermostat);
         super.updateValues(status, service);

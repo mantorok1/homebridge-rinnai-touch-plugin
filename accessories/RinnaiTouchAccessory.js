@@ -6,21 +6,21 @@ let Accessory, Service, Characteristic, UUIDGen;
 class RinnaiTouchAccessory {
     constructor(platform) {
         this.log = platform.log;
-        this.debug = platform.debug;
-        this.debug('RinnaiTouchAccessory', undefined, 'platform');
+        this.log.debug('RinnaiTouchAccessory', undefined, 'platform');
 
         Accessory = platform.Accessory;
         Service = platform.Service; 
         Characteristic = platform.Characteristic;
         UUIDGen = platform.UUIDGen;
 
+        this.settings = platform.settings;
         this.map = platform.map;
         this.server = platform.server;
         this.accessory = null;
     }
 
     getKey(zone) {
-        this.debug('RinnaiTouchAccessory', 'getKey', zone);
+        this.log.debug('RinnaiTouchAccessory', 'getKey', zone);
 
         let key = this.name;
 
@@ -34,7 +34,7 @@ class RinnaiTouchAccessory {
     }
 
     configure(accessory) {
-        this.debug('RinnaiTouchAccessory', 'configure', 'accessory');
+        this.log.debug('RinnaiTouchAccessory', 'configure', 'accessory');
 
         this.accessory = accessory;
         this.setAccessoryInformation();
@@ -42,7 +42,7 @@ class RinnaiTouchAccessory {
     }
 
     setAccessoryInformation() {
-        this.debug('RinnaiTouchAccessory', 'setAccessoryInformation');
+        this.log.debug('RinnaiTouchAccessory', 'setAccessoryInformation');
 
         this.accessory.getService(Service.AccessoryInformation)
             .setCharacteristic(Characteristic.Manufacturer, 'Rinnai')
@@ -53,7 +53,7 @@ class RinnaiTouchAccessory {
     }
 
     async getCharacteristicValue(getValue, callback) {
-        this.debug('RinnaiTouchAccessory', 'getCharacteristicValue', 'getValue', 'callback');
+        this.log.debug('RinnaiTouchAccessory', 'getCharacteristicValue', 'getValue', 'callback');
         try {
             let status = await this.server.getStatus();
             let value = getValue(status);
@@ -61,13 +61,13 @@ class RinnaiTouchAccessory {
             callback(null, value);
         }
         catch(error) {
-            this.log(`ERROR: ${error.message}`);
+            this.log.error(error);
             callback(error);
         }
     }
 
     async setCharacteristicValue(setValue, value, callback) {
-        this.debug('RinnaiTouchAccessory', 'setCharacteristic', 'setValue', value, 'callback');
+        this.log.debug('RinnaiTouchAccessory', 'setCharacteristic', 'setValue', value, 'callback');
         try {
             let status = await this.server.getStatus();
             let commands = setValue(value, status);
@@ -81,21 +81,21 @@ class RinnaiTouchAccessory {
             callback(null);
         }
         catch(error) {
-            this.log(`ERROR: ${error.message}`);
+            this.log.error(error);
             callback(error);
         }
     }
 
     getCommand(path, state, expect) {
-        this.debug('RinnaiTouchAccessory', 'getCommand', path, state, JSON.stringify(expect));
+        this.log.debug('RinnaiTouchAccessory', 'getCommand', path, state, JSON.stringify(expect));
 
         if (path === undefined) {
-            this.log('ERROR: Cannot determine path for command');
+            this.log.warn('Cannot determine path for command');
             return undefined;
         }
 
         if (state === undefined) {
-            this.log('ERROR: Unable to determine state for command');
+            this.log.warn('Unable to determine state for command');
             return undefined;
         }
 

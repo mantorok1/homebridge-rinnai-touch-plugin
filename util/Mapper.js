@@ -1,21 +1,68 @@
 class Mapper {
-    constructor(debug) {
-        this.debug = debug;
-        this.debug(this.constructor.name, undefined, 'debug');
+    #log;
+    #settings;
+    #mapSingle;
+    #mapMulti;
+
+    constructor(log, settings) {
+        this.#log = log;
+        this.#log.debug(this.constructor.name, undefined, 'log', 'settings');
+        this.#settings = settings;
 
         this.modes = {
             HGOM: 'Heat',
             CGOM: 'Cool',
             ECOM: 'Evap'
         };
-        this.map = null;
+
+        this.#mapSingle = this.generateSingleMap();
+        this.#mapMulti = this.generateMultiMap();
     }
 
-    init(hasMultipleControllers, overrides) {
-        this.debug(this.constructor.name, 'init', hasMultipleControllers, JSON.stringify(overrides));
+    generateSingleMap() {
+        this.#log.debug(this.constructor.name, 'generateSingleMap');
 
-        // Default - Single controller
-        var map = {
+        let map = this.defaultMap();
+
+        // Overrides
+        if (this.#settings.mapOverrides) {
+            for(let key in this.#settings.mapOverrides) {
+                map[key] = this.#settings.mapOverrides[key];
+            }
+        }
+
+        return map;
+    }
+
+    generateMultiMap() {
+        this.#log.debug(this.constructor.name, 'generateMultiMap');
+
+        let map = this.defaultMap();
+
+        // Multiple controllers
+        map.HeatOperation = 'HGOM.Z{zone}O.OP';
+        map.HeatSchedulePeriod = 'HGOM.Z{zone}S.AT',
+        map.HeatScheduleState = 'HGOM.Z{zone}O.AO';
+        map.HeatTargetTemp = 'HGOM.Z{zone}O.SP';
+        map.CoolOperation = 'CGOM.Z{zone}O.OP';
+        map.CoolSchedulePeriod = 'CGOM.Z{zone}S.AT',
+        map.CoolScheduleState = 'CGOM.Z{zone}O.AO';
+        map.CoolTargetTemp = 'CGOM.Z{zone}O.SP';
+
+        // Overrides
+        if (this.#settings.mapOverrides) {
+            for(let key in this.#settings.mapOverrides) {
+                map[key] = this.#settings.mapOverrides[key];
+            }
+        }
+
+        return map;
+    }
+
+    defaultMap() {
+        this.#log.debug(this.constructor.name, 'defaultMap');
+
+        return {
             Mode: 'SYST.OSS.MD',                    // H, C, E
             TempUnits: 'SYST.CFG.TU',               // Celsius, Fahrenheit
 
@@ -49,37 +96,18 @@ class Mapper {
             EvapZoneSwitch: 'ECOM.GSO.ZUUE',        // Y, N
             EvapPump: 'ECOM.GSO.PS',                // oN, ofF
         };
-
-        // Multiple controllers
-        if (hasMultipleControllers) {
-            map.HeatOperation = 'HGOM.Z{zone}O.OP';
-            map.HeatSchedulePeriod = 'HGOM.Z{zone}S.AT',
-            map.HeatScheduleState = 'HGOM.Z{zone}O.AO';
-            map.HeatTargetTemp = 'HGOM.Z{zone}O.SP';
-            map.CoolOperation = 'CGOM.Z{zone}O.OP';
-            map.CoolSchedulePeriod = 'CGOM.Z{zone}S.AT',
-            map.CoolScheduleState = 'CGOM.Z{zone}O.AO';
-            map.CoolTargetTemp = 'CGOM.Z{zone}O.SP';
-        }
-
-        // Overrides
-        if (overrides) {
-            for(let key in overrides) {
-                map[key] = overrides[key];
-            }
-        }
-
-        this.map = map;
     }
 
     getPath(key, mode, zone) {
-        this.debug(this.constructor.name, 'getPath', key, mode, zone);
+        this.#log.debug(this.constructor.name, 'getPath', key, mode, zone);
+
+        let map = this.#settings.controllers === 1 ? this.#mapSingle : this.#mapMulti;
 
         if (mode !== undefined) {
             key = `${this.modes[mode]}${key}`;
         }
         
-        let path = this.map[key]; 
+        let path = map[key]; 
 
         if (zone !== undefined)
             path = path.replace('{zone}', zone);

@@ -5,7 +5,7 @@ let Accessory, Service, Characteristic, UUIDGen
 class RinnaiTouchManualSwitch extends RinnaiTouchSwitch {
     constructor(platform) {
         super(platform);
-        this.debug(this.constructor.name, undefined, 'platform');
+        this.log.debug(this.constructor.name, undefined, 'platform');
 
         this.name = 'ManualSwitch';
 
@@ -16,7 +16,7 @@ class RinnaiTouchManualSwitch extends RinnaiTouchSwitch {
     }
 
     setEventHandlers() {
-        this.debug(this.constructor.name, 'setEventHandlers');
+        this.log.debug(this.constructor.name, 'setEventHandlers');
 
         this.accessory.getService(Service.Switch)
             .getCharacteristic(Characteristic.On)
@@ -25,7 +25,7 @@ class RinnaiTouchManualSwitch extends RinnaiTouchSwitch {
     }
 
     getManualSwitchOn(status) {
-        this.debug(this.constructor.name, 'getManualSwitchOn', 'status');
+        this.log.debug(this.constructor.name, 'getManualSwitchOn', 'status');
 
         let path = this.map.getPath('Operation', status.mode, this.accessory.context.zone);
         let state = status.getState(path);
@@ -37,7 +37,7 @@ class RinnaiTouchManualSwitch extends RinnaiTouchSwitch {
     }
 
     setManualSwitchOn(value, status) {
-        this.debug(this.constructor.name, 'setManualSwitchOn', value, 'status');
+        this.log.debug(this.constructor.name, 'setManualSwitchOn', value, 'status');
 
         let commands = [];
 
@@ -53,7 +53,7 @@ class RinnaiTouchManualSwitch extends RinnaiTouchSwitch {
     }
 
     updateValues(status) {
-        this.debug(this.constructor.name, 'updateValues', 'status');
+        this.log.debug(this.constructor.name, 'updateValues', 'status');
         
         this.accessory.getService(Service.Switch)
             .getCharacteristic(Characteristic.On)

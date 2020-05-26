@@ -5,7 +5,7 @@ let Accessory, Service, Characteristic, UUIDGen;
 class RinnaiTouchPump extends RinnaiTouchAccessory {
     constructor(platform) {
         super(platform);
-        this.debug(this.constructor.name, undefined, 'platform');
+        this.log.debug(this.constructor.name, undefined, 'platform');
 
         this.name = 'Pump';
 
@@ -16,7 +16,7 @@ class RinnaiTouchPump extends RinnaiTouchAccessory {
     }
 
     init(name, status) {
-        this.debug(this.constructor.name, 'init', name, 'status');
+        this.log.debug(this.constructor.name, 'init', name, 'status');
         
         let accessoryName = this.name;
         let uuid = UUIDGen.generate(accessoryName);
@@ -32,7 +32,7 @@ class RinnaiTouchPump extends RinnaiTouchAccessory {
     }
 
     setEventHandlers() {
-        this.debug(this.constructor.name, 'setEventHandlers');
+        this.log.debug(this.constructor.name, 'setEventHandlers');
 
         let service = this.accessory.getService(Service.Valve);
         service
@@ -46,7 +46,7 @@ class RinnaiTouchPump extends RinnaiTouchAccessory {
     }
 
     getPumpActive(status) {
-        this.debug(this.constructor.name, 'getPumpActive', 'status');
+        this.log.debug(this.constructor.name, 'getPumpActive', 'status');
 
         let path = this.map.getPath('Pump', status.mode);
         let state = status.getState(path);
@@ -61,7 +61,7 @@ class RinnaiTouchPump extends RinnaiTouchAccessory {
     }
 
     getPumpInUse(status) {
-        this.debug(this.constructor.name, 'getPumpInUse', 'status');
+        this.log.debug(this.constructor.name, 'getPumpInUse', 'status');
 
         const active = this.getPumpActive(status);
 
@@ -71,7 +71,7 @@ class RinnaiTouchPump extends RinnaiTouchAccessory {
     }
 
     setPumpActive(value, status) {
-        this.debug(this.constructor.name, 'setPumpActive', value, status);
+        this.log.debug(this.constructor.name, 'setPumpActive', value, status);
 
         let commands = [];
 
@@ -88,7 +88,7 @@ class RinnaiTouchPump extends RinnaiTouchAccessory {
     }
 
     updateValues(status) {
-        this.debug(this.constructor.name, 'updateValues', 'status');
+        this.log.debug(this.constructor.name, 'updateValues', 'status');
         
         let service = this.accessory.getService(Service.Valve);
         service

@@ -61,7 +61,7 @@
         "required": false
       },
       "closeConnectionDelay": {
-        "title": "",
+        "title": " Close Connection Delay (ms)",
         "type": "number",
         "placeholder": 1100,
         "minimum": 0,
@@ -78,6 +78,55 @@
         "type": "boolean",
         "default": false,
         "required": false
+      },
+      "mqtt": {
+        "type": "object",
+        "properties": {
+          "host": {
+            "title": "Host Name",
+            "type": "string",
+            "placeholder": "mqtt://localhost"
+          },
+          "port": {
+            "title": "Port",
+            "type": "number",
+            "placeholder": 1883,
+            "minimum": 0,
+            "maximum": 65535
+          },
+          "username": {
+            "title": "Username",
+            "type": "string"
+          },
+          "password": {
+            "title": "Password",
+            "type": "string"
+          },
+          "publishTopic": {
+            "title": "Publish Topic Name",
+            "type": "string",
+            "placeholder": "RinnaiTouchStatus"
+          },
+          "subscribeTopic": {
+            "title": "Subscription Topic Name",
+            "type": "string",
+            "placeholder": "RinnaiTouchCommand"
+          },
+          "publishFrequency": {
+            "title": "Publish Frequency (secs)",
+            "description": "How often the status will be published (0 = don't publish)",
+            "type": "number",
+            "placeholder": 60,
+            "minimum": 0,
+            "maximum": 86400
+           },
+           "nativePayloads": {
+             "title": "Use Native Status/Command payloads",
+             "type": "boolean",
+             "default": false,
+             "required": false
+           }
+        }
       },
       "maps": {
         "type": "object",
@@ -120,8 +169,11 @@
   },
   "layout": [
     "name",
-    "serviceType",
-    "controllers",
+    {
+        "type": "flex",
+        "flex-flow": "row wrap",
+        "items": [ "serviceType", "controllers" ] 
+    },
     {
       "type": "fieldset",
       "title": "Optional Settings",
@@ -132,7 +184,40 @@
         "showFan",
         "showAuto",
         "showAdvanceSwitches",
-        "showManualSwitches",
+        "showManualSwitches"
+      ]
+    },
+    {
+      "type": "fieldset",
+      "title": "MQTT Settings",
+      "expandable": true,
+      "expanded": false,
+      "items": [
+        {
+            "type": "flex",
+            "flex-flow": "row wrap",
+            "items": [ "mqtt.host", "mqtt.port" ] 
+        },
+        {
+            "type": "flex",
+            "flex-flow": "row wrap",
+            "items": [ "mqtt.username", "mqtt.password" ] 
+        },
+        {
+            "type": "flex",
+            "flex-flow": "row wrap",
+            "items": [ "mqtt.publishTopic", "mqtt.subscribeTopic" ] 
+        },
+        "mqtt.publishFrequency",
+        "mqtt.nativePayloads"
+      ]
+    },
+    {
+      "type": "fieldset",
+      "title": "Advanced Settings",
+      "expandable": true,
+      "expanded": false,
+      "items": [
         "closeConnectionDelay",
         "clearCache",
         "debug"

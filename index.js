@@ -1,5 +1,8 @@
+const Settings = require('./util/Settings');
+const Logger = require('./util/Logger');
+const Mapper = require('./util/Mapper');
+
 const RinnaiTouchServer = require('./server/RinnaiTouchServer');
-const Mapper = require('./accessories/Mapper');
 const RinnaiTouchThermostat = require('./accessories/RinnaiTouchThermostat');
 const RinnaiTouchHeaterCooler = require('./accessories/RinnaiTouchHeaterCooler');
 const RinnaiTouchZoneSwitch = require('./accessories/RinnaiTouchZoneSwitch');
@@ -7,6 +10,8 @@ const RinnaiTouchFan = require('./accessories/RinnaiTouchFan');
 const RinnaiTouchPump = require('./accessories/RinnaiTouchPump');
 const RinnaiTouchAdvanceSwitch = require('./accessories/RinnaiTouchAdvanceSwitch');
 const RinnaiTouchManualSwitch = require('./accessories/RinnaiTouchManualSwitch');
+
+const MqttClient = require('./mqtt/Client');
 
 let Accessory, Service, Characteristic, UUIDGen;
 
@@ -38,150 +43,110 @@ module.exports = function(homebridge) {
 }
 
 class RinnaiTouchPlatform {
+    #started = false;
+
     constructor(log, config, api) {
-        this.log = log;
-
-        config = config ? config : {};
-
-        this.debug = () => {};
-        if (config.debug) {
-            this.debug = (className, methodName, ...args) => {
-                let message = className;
-                if (methodName) {
-                    message += `.${methodName}`;
-                }
-                message += `(${args.join(',')})`;
-        
-                this.log(message);
+        try {
+            this.settings = new Settings(config);
+            this.log = new Logger(log, this.settings.debug);
+    
+            this.log.debug(this.constructor.name, undefined, 'log', JSON.stringify(config), 'api')
+    
+            this.Accessory = Accessory;
+            this.Service = Service; 
+            this.Characteristic = Characteristic;
+            this.UUIDGen = UUIDGen;
+    
+            this.accessories = {};
+    
+            this.map = new Mapper(this.log, this.settings);
+            this.server = new RinnaiTouchServer(this.log);
+            this.server.queue.drained(this.postProcess.bind(this));
+            this.mqttClient = new MqttClient(this);
+            this.#started = true;
+    
+            if (api) {
+                this.api = api;
+                this.api.on('didFinishLaunching', () => {
+                    try {
+                        this.discover();
+                    }
+                    catch(error) {
+                        this.log.error(error);
+                    }
+                });
             }
         }
-
-        this.debug(this.constructor.name, undefined, 'log', JSON.stringify(config), 'api')
-
-        this.name = config.name || 'Rinnai Touch';
-        this.useThermostat = (config.serviceType || "thermostat") === "thermostat";
-        this.controllers = config.controllers || 1;
-
-        this.showZoneSwitches = config.showZoneSwitches === undefined
-            ? this.controllers === 1
-            : config.showZoneSwitches;
-        this.showFan = config.showFan === undefined
-            ? true
-            : config.showFan;
-        this.showAuto = config.showAuto === undefined
-            ? this.controllers === 1 
-            : config.showAuto;
-        this.showAdvanceSwitches = config.showAdvanceSwitches === undefined
-            ? this.controllers === 1
-            : config.showAdvanceSwitches;
-        this.showManualSwitches = config.showManualSwitches === undefined
-            ? this.controllers === 1 
-            : config.showManualSwitches;
-        this.closeConnectionDelay = config.closeConnectionDelay || 1100;
-        this.clearCache = config.clearCache === undefined ? false : config.clearCache;
-        this.maps = config.maps;
-
-        this.Accessory = Accessory;
-        this.Service = Service; 
-        this.Characteristic = Characteristic;
-        this.UUIDGen = UUIDGen;
-
-        this.accessories = {};
-        this.config = {};
-
-        this.map = new Mapper(this.debug);
-        this.server = new RinnaiTouchServer(this.debug, this.log);
-        this.server.queue.drained(this.postProcess.bind(this));
-
-        if (api) {
-            this.api = api;
-            this.api.on('didFinishLaunching', () => {
-                this.discover();
-            });
+        catch(error) {
+            log(`[ERROR] ${error.message}`);
         }
     }
 
     configureAccessory(accessory) {
-        this.debug(this.constructor.name, 'configureAccessory', 'accessory');
-        this.log(`Configure ${accessory.displayName}`);
+        try {
+            if (!this.#started)
+                return;
 
-        accessory.reachable = true;
-
-        let rtAccessory;
-
-        switch(accessory.context.type) {
-            case 'thermostat':
-                rtAccessory = new RinnaiTouchThermostat(this);
-                break;
-            case 'heatercooler':
-                rtAccessory = new RinnaiTouchHeaterCooler(this);
-                break;
-            case 'zoneswitch':
-                rtAccessory = new RinnaiTouchZoneSwitch(this);
-                break;
-            case 'fan':
-                rtAccessory = new RinnaiTouchFan(this);
-                break;
-            case 'pump':
-                rtAccessory = new RinnaiTouchPump(this);
-                break;
-            case 'advanceswitch':
-                rtAccessory = new RinnaiTouchAdvanceSwitch(this);
-                break;
-            case 'manualswitch':
-                rtAccessory = new RinnaiTouchManualSwitch(this);
-                break;
+            this.log.debug(this.constructor.name, 'configureAccessory', 'accessory');
+            this.log.info(`Configure ${accessory.displayName}`);
+    
+            accessory.reachable = true;
+    
+            let rtAccessory;
+    
+            switch(accessory.context.type) {
+                case 'thermostat':
+                    rtAccessory = new RinnaiTouchThermostat(this);
+                    break;
+                case 'heatercooler':
+                    rtAccessory = new RinnaiTouchHeaterCooler(this);
+                    break;
+                case 'zoneswitch':
+                    rtAccessory = new RinnaiTouchZoneSwitch(this);
+                    break;
+                case 'fan':
+                    rtAccessory = new RinnaiTouchFan(this);
+                    break;
+                case 'pump':
+                    rtAccessory = new RinnaiTouchPump(this);
+                    break;
+                case 'advanceswitch':
+                    rtAccessory = new RinnaiTouchAdvanceSwitch(this);
+                    break;
+                case 'manualswitch':
+                    rtAccessory = new RinnaiTouchManualSwitch(this);
+                    break;
+            }
+    
+            rtAccessory.configure(accessory);
+            this.accessories[rtAccessory.getKey()] = rtAccessory;    
         }
-
-        rtAccessory.configure(accessory);
-        this.accessories[rtAccessory.getKey()] = rtAccessory;
+        catch(error) {
+            this.log.error(error);
+        }
     }
 
     async discover() {
-        this.debug(this.constructor.name, 'discover');
         try {
+            this.log.debug(this.constructor.name, 'discover');
             // Clear Cached accessories if required
-            if (this.clearCache) {
+            if (this.settings.clearCache) {
                 let accessories = Object.values(this.accessories).map((acc) => acc.accessory);
                 this.api.unregisterPlatformAccessories("homebridge-rinnai-touch-plugin", "RinnaiTouchPlatform", Object.values(accessories));
                 this.accessories = {};
             }
 
             let status = await this.server.getStatus();
-
-            const path = {
-                HasHeater: 'SYST.AVM.HG',
-                HasCooler: 'SYST.AVM.CG',
-                HasEvap: 'SYST.AVM.EC',
-                HasMultipleControllers: 'SYST.CFG.MTSP'
-            };
-
-            this.config['hasHeater'] = status.getState(path.HasHeater) === 'Y';
-            this.config['hasCooler'] = status.getState(path.HasCooler) === 'Y';
-            this.config['hasEvap'] = status.getState(path.HasEvap) === 'Y';
-            this.hasMultipleControllers = status.getState(path.HasMultipleControllers) === 'Y';
-            
             this.zones = status.getZones();
-            if (this.controllers === undefined) {
-                this.controllers = this.hasMultipleControllers ? this.zones.length : 1;
-            } else {
-                if (this.controllers > 1 && this.controllers !== this.zones.length) {
-                    this.log(`WARNING: Cannot have more controllers than there are zones. Setting controllers to ${this.zones.length}`);
-                    this.controllers = this.zones.length;
-                }
-            }
-            this.hasMultipleControllers = this.controllers > 1;
 
-            this.map.init(this.hasMultipleControllers, this.maps);
+            this.settings.setStatusSettings(status);
    
-            // Log what was found
-            this.log('Discovered the following:')
-            if (this.config.hasHeater) this.log('* Heater');
-            if (this.config.hasCooler) this.log('* Cooler');
-            if (this.config.hasEvap) this.log('* Evaporative Cooler');
-            this.log(`* Controllers: ${this.controllers}`);
-            if (this.controllers === 1) {
-                this.log(`* Zones: ${this.zones.join()}`);
+            if (this.settings.hasHeater) this.log.info('Found Heater');
+            if (this.settings.hasCooler) this.log.info('Found Cooler');
+            if (this.settings.hasEvap) this.log.info('Found Evaporative Cooler');
+            this.log.info(`Found Controllers: ${this.settings.controllers}`);
+            if (this.settings.controllers === 1) {
+                this.log.info(`Found Zone(s): ${this.zones.join()}`);
             }
 
             this.configureThermostats(status);
@@ -189,21 +154,21 @@ class RinnaiTouchPlatform {
             this.configureZoneSwitches(status);
             this.configureFan(status);
             this.configurePump(status);
-            this.configureAdvanceSwitch(status);
-            this.configureManualSwitch(status);
+            this.configureAdvanceSwitches(status);
+            this.configureManualSwitches(status);
         }
         catch(error) {
-            this.log(`ERROR: ${error.message}`);
+            this.log.error(error);
         }
     }
 
     configureThermostats(status) {
-        this.debug(this.constructor.name, 'configureThermostats', 'status');
+        this.log.debug(this.constructor.name, 'configureThermostats', 'status');
 
         for(let i = 0; i < 4; i++) {
             let zone = String.fromCharCode(65 + i);
-            if (this.useThermostat && i < this.controllers) {
-                let name = this.hasMultipleControllers ? this.zones[i] : this.name;
+            if (this.settings.useThermostat && i < this.settings.controllers) {
+                let name = (this.settings.controllers > 1) ? this.zones[i] : this.settings.name;
                 this.addAccessory(RinnaiTouchThermostat, name, status, zone);
             } else {
                 this.removeAccessory(RinnaiTouchThermostat, zone);
@@ -212,12 +177,12 @@ class RinnaiTouchPlatform {
     }
 
     configureHeaterCoolers(status) {
-        this.debug(this.constructor.name, 'configureHeaterCoolers', 'status');
+        this.log.debug(this.constructor.name, 'configureHeaterCoolers', 'status');
 
         for(let i = 0; i < 4; i++) {
             let zone = String.fromCharCode(65 + i);
-            if (!this.useThermostat && i < this.controllers) {
-                let name = this.hasMultipleControllers ? this.zones[i] : this.name;
+            if (!this.settings.useThermostat && i < this.settings.controllers) {
+                let name = (this.settings.controllers > 1) ? this.zones[i] : this.settings.name;
                 this.addAccessory(RinnaiTouchHeaterCooler, name, status, zone);
             } else {
                 this.removeAccessory(RinnaiTouchHeaterCooler, zone);
@@ -226,9 +191,9 @@ class RinnaiTouchPlatform {
     }
 
     configureZoneSwitches(status) {
-        this.debug(this.constructor.name, 'configureZoneSwitches', 'status');
+        this.log.debug(this.constructor.name, 'configureZoneSwitches', 'status');
 
-        let hasZoneSwitches = this.showZoneSwitches && this.controllers === 1 && this.zones.length > 1;
+        let hasZoneSwitches = this.settings.showZoneSwitches && this.settings.controllers === 1 && this.zones.length > 1;
         for(let i = 0; i < 4; i++) {
             let zone = String.fromCharCode(65 + i);
             if (hasZoneSwitches && i < this.zones.length) {
@@ -240,9 +205,9 @@ class RinnaiTouchPlatform {
     }
 
     configureFan(status) {
-        this.debug(this.constructor.name, 'configureFan', 'status');
+        this.log.debug(this.constructor.name, 'configureFan', 'status');
 
-        if (this.showFan) {
+        if (this.settings.showFan) {
             this.addAccessory(RinnaiTouchFan, 'Circulation Fan', status);
         } else {
             this.removeAccessory(RinnaiTouchFan);
@@ -250,22 +215,22 @@ class RinnaiTouchPlatform {
     }
 
     configurePump(status) {
-        this.debug(this.constructor.name, 'configurePump', 'status');
+        this.log.debug(this.constructor.name, 'configurePump', 'status');
 
-        if (this.hasEvap) {
+        if (this.settings.hasEvap) {
             this.addAccessory(RinnaiTouchPump, 'Evaporative Pump', status);
         } else {
             this.removeAccessory(RinnaiTouchPump);
         }
     }
 
-    configureAdvanceSwitch(status) {
-        this.debug(this.constructor.name, 'configureAdvanceSwitch', 'status');
+    configureAdvanceSwitches(status) {
+        this.log.debug(this.constructor.name, 'configureAdvanceSwitch', 'status');
 
         for(let i = 0; i < 4; i++) {
             let zone = String.fromCharCode(65 + i);
-            if (this.showAdvanceSwitches && i < this.controllers) {
-                let name = this.hasMultipleControllers ? `Advance Period ${this.zones[i]}` : 'Advance Period';
+            if (this.settings.showAdvanceSwitches && i < this.settings.controllers) {
+                let name = (this.settings.controllers > 1) ? `Advance Period ${this.zones[i]}` : 'Advance Period';
                 this.addAccessory(RinnaiTouchAdvanceSwitch, name, status, zone);
             } else {
                 this.removeAccessory(RinnaiTouchAdvanceSwitch, zone);
@@ -273,13 +238,13 @@ class RinnaiTouchPlatform {
         }
     }
 
-    configureManualSwitch(status) {
-        this.debug(this.constructor.name, 'configureManualSwitch', 'status');
+    configureManualSwitches(status) {
+        this.log.debug(this.constructor.name, 'configureManualSwitch', 'status');
 
         for(let i = 0; i < 4; i++) {
             let zone = String.fromCharCode(65 + i);
-            if (this.showManualSwitches && i < this.controllers) {
-                let name = this.hasMultipleControllers ? `Manual ${this.zones[i]}` : 'Manual';
+            if (this.settings.showManualSwitches && i < this.settings.controllers) {
+                let name = (this.settings.controllers > 1) ? `Manual ${this.zones[i]}` : 'Manual';
                 this.addAccessory(RinnaiTouchManualSwitch, name, status, zone);
             } else {
                 this.removeAccessory(RinnaiTouchManualSwitch, zone);
@@ -288,7 +253,7 @@ class RinnaiTouchPlatform {
     }
 
     addAccessory(RinnaiTouchAccessory, name, status, zone) {
-        this.debug(this.constructor.name, 'addAccessory', RinnaiTouchAccessory.name, name, 'status', zone);
+        this.log.debug(this.constructor.name, 'addAccessory', RinnaiTouchAccessory.name, name, 'status', zone);
       
         let rtAccessory = new RinnaiTouchAccessory(this);
         let key = rtAccessory.getKey(zone);
@@ -303,7 +268,7 @@ class RinnaiTouchPlatform {
     }
 
     removeAccessory(RinnaiTouchAccessory, zone) {
-        this.debug(this.constructor.name, 'removeAccessory', RinnaiTouchAccessory.name, zone);
+        this.log.debug(this.constructor.name, 'removeAccessory', RinnaiTouchAccessory.name, zone);
 
         let rtAccessory = new RinnaiTouchAccessory(this);
         let key = rtAccessory.getKey(zone);
@@ -316,8 +281,9 @@ class RinnaiTouchPlatform {
     }
 
     async postProcess() {
-        this.debug(this.constructor.name, 'postProcess');
         try {
+            this.log.debug(this.constructor.name, 'postProcess');
+
             let status = this.server.status;
             setTimeout(() => {
                 this.updateAll(status);
@@ -327,27 +293,32 @@ class RinnaiTouchPlatform {
             this.server.status = undefined;
 
             // Close TCP connection
-            await this.server.destroy(this.closeConnectionDelay);
+            await this.server.destroy(this.settings.closeConnectionDelay);
         }
         catch(error) {
-            this.log(`ERROR: ${error.message}`);
+            this.log.error(error);
         }
     }
 
     updateAll(status) {
-        this.debug(this.constructor.name, 'updateAll', 'status');
+        try {
+            this.log.debug(this.constructor.name, 'updateAll', 'status');
 
-        // Check if zones have changed
-        if (this.controllers === 1) {
-            if (this.zones.length !== status.getZones().length) {
-                this.zones = status.getZones();
-                this.configureZoneSwitches(status);
+            // Check if zones have changed
+            if (this.settings.controllers === 1) {
+                if (this.zones.length !== status.getZones().length) {
+                    this.zones = status.getZones();
+                    this.configureZoneSwitches(status);
+                }
+            }
+    
+            // Update values for all accessories
+            for(let key in this.accessories) {
+                this.accessories[key].updateValues(status);
             }
         }
-
-        // Update values for all accessories
-        for(let key in this.accessories) {
-            this.accessories[key].updateValues(status);
+        catch(error) {
+            this.log.error(error);
         }
     }
 }

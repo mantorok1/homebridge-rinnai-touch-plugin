@@ -1,16 +1,18 @@
 const dgram = require('dgram');
 
 class RinnaiTouchUdp {
-    constructor(debug, timeout = 5000) {
-        this.debug = debug;
-        this.debug(this.constructor.name, undefined, 'debug', timeout);
+    #log;
+
+    constructor(log, timeout = 5000) {
+        this.#log = log;
+        this.#log.debug(this.constructor.name, undefined, 'log', timeout);
 
         this.timeout = timeout;
         this.port = 50000;
     }
 
     getAddress() {
-        this.debug(this.constructor.name, 'getAddress');
+        this.#log.debug(this.constructor.name, 'getAddress');
 
         let self = this;
         return new Promise((resolve, reject) => {
@@ -27,9 +29,11 @@ class RinnaiTouchUdp {
                     clearTimeout(timer);
                     socket.removeAllListeners();
                     socket.close();
+                    const port = message[32] * 256 + message[33];
+                    this.#log.info(`Found Rinnai Touch module at ${remote.address}:${port}`)
                     resolve({
                         address: remote.address,
-                        port: message[32] * 256 + message[33]
+                        port: port
                     });
                 }            
             });

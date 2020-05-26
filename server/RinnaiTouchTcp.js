@@ -2,17 +2,19 @@ const RinnaiTouchUdp = require('./RinnaiTouchUdp');
 const net = require('net');
 
 class RinnaiTouchTcp {
-    constructor(debug, timeout = 5000) {
-        this.debug = debug;
-        this.debug(this.constructor.name, undefined, 'debug', timeout);
+    #log;
 
-        this.udp = new RinnaiTouchUdp(debug, timeout);
+    constructor(log, timeout = 5000) {
+        this.#log = log;
+        this.#log.debug(this.constructor.name, undefined, 'log', timeout);
+
+        this.udp = new RinnaiTouchUdp(log, timeout);
         this.address = null;
         this.socket = null;
     }
 
     connect() {
-        this.debug(this.constructor.name, 'connect');
+        this.#log.debug(this.constructor.name, 'connect');
 
         let self = this;
         return new Promise(async (resolve, reject) => {
@@ -56,7 +58,7 @@ class RinnaiTouchTcp {
     }
 
     destroy() {
-        this.debug(this.constructor.name, 'destroy');
+        this.#log.debug(this.constructor.name, 'destroy');
 
         let self = this;
         return new Promise((resolve, reject) => {
@@ -70,7 +72,7 @@ class RinnaiTouchTcp {
     }
 
     read() {
-        this.debug(this.constructor.name, 'read');
+        this.#log.debug(this.constructor.name, 'read');
 
         let self = this;
         return new Promise((resolve, reject) => {
@@ -90,7 +92,7 @@ class RinnaiTouchTcp {
     }
 
     write(data) {
-        this.debug(this.constructor.name, 'write', data);
+        this.#log.debug(this.constructor.name, 'write', data);
 
         let self = this;
         return new Promise((resolve, reject) => {

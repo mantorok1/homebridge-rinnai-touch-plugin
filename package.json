@@ -1,6 +1,6 @@
 {
   "name": "homebridge-rinnai-touch-plugin",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "description": "Homebridge Plugin to control heating/cooling via a Rinnai Touch WiFi Module",
   "main": "index.js",
   "scripts": {
@@ -26,6 +26,7 @@
   },
   "homepage": "https://github.com/mantorok1/homebridge-rinnai-touch-plugin#readme",
   "dependencies": {
+    "async-mqtt": "^2.5.0",
     "concurrent-queue": "^7.0.2"
   }
 }

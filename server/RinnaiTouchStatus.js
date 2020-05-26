@@ -1,14 +1,16 @@
 class RinnaiTouchStatus {
-    constructor(status, debug) {
-        this.debug = debug;
-        this.debug(this.constructor.name, undefined, status, 'debug');
+    #log;
+
+    constructor(log, status) {
+        this.#log = log;
+        this.#log.debug(this.constructor.name, undefined, 'log', status);
 
         this.status = JSON.parse(status);
         this.mode = Object.keys(this.status[1])[0];
     }
 
     getState(path) {
-        this.debug(this.constructor.name, 'getState', path);
+        this.#log.debug(this.constructor.name, 'getState', path);
 
         if (path === undefined) {
             return undefined;
@@ -28,7 +30,7 @@ class RinnaiTouchStatus {
     }
 
     getModeState(path) {
-        this.debug(this.constructor.name, 'getModeState', path);
+        this.#log.debug(this.constructor.name, 'getModeState', path);
 
         if (path === undefined) {
             return undefined;
@@ -38,14 +40,14 @@ class RinnaiTouchStatus {
     }
 
     getPathArray(path) {
-        this.debug(this.constructor.name, 'getPathArray', path);
+        this.#log.debug(this.constructor.name, 'getPathArray', path);
 
         let pathArray = path.substring(0, 4) === "SYST" ? [0] : [1];
         return pathArray.concat(path.split("."));
     }
 
     getZones() {
-        this.debug(this.constructor.name, 'getZones');
+        this.#log.debug(this.constructor.name, 'getZones');
 
         let zones = [];
         for(const zone of ['A', 'B', 'C', 'D']) {

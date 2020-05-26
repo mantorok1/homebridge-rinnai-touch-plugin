@@ -5,7 +5,7 @@ let Accessory, Service, Characteristic, UUIDGen;
 class RinnaiTouchHeaterCooler extends RinnaiTouchTemperature {
     constructor(platform) {
         super(platform);
-        this.debug(this.constructor.name, undefined, 'platform');
+        this.log.debug(this.constructor.name, undefined, 'platform');
 
         this.name = 'HeaterCooler';
 
@@ -16,7 +16,7 @@ class RinnaiTouchHeaterCooler extends RinnaiTouchTemperature {
     }
 
     init(name, status, zone) {
-        this.debug(this.constructor.name, 'init', name, 'status', zone);
+        this.log.debug(this.constructor.name, 'init', name, 'status', zone);
         
         super.init(name, status, zone)
 
@@ -57,29 +57,29 @@ class RinnaiTouchHeaterCooler extends RinnaiTouchTemperature {
     }
 
     getValidCurrentHeaterCoolerStates () {
-        this.debug(this.constructor.name, 'getValidCurrentHeaterCoolerStates');
+        this.log.debug(this.constructor.name, 'getValidCurrentHeaterCoolerStates');
 
         let validStates = [Characteristic.CurrentHeaterCoolerState.IDLE];
-        if (this.config.hasHeater) {
+        if (this.settings.hasHeater) {
             validStates.push(Characteristic.CurrentHeaterCoolerState.HEATING);
         }
-        if (this.config.hasCooler || this.config.hasEvap) {
+        if (this.settings.hasCooler || this.settings.hasEvap) {
             validStates.push(Characteristic.CurrentHeaterCoolerState.COOLING);
         }
         return validStates;
     }
 
     getValidTargetHeaterCoolerStates() {
-        this.debug(this.constructor.name, 'getValidTargetHeaterCoolerStates');
+        this.log.debug(this.constructor.name, 'getValidTargetHeaterCoolerStates');
 
         let validStates = [];
-        if (this.showAuto) {
+        if (this.settings.showAuto) {
             validStates.push(Characteristic.TargetHeaterCoolerState.AUTO);
         }
-        if (this.config.hasHeater) {
+        if (this.settings.hasHeater) {
             validStates.push(Characteristic.TargetHeaterCoolerState.HEAT);
         }
-        if (this.config.hasCooler || this.config.hasEvap) {
+        if (this.settings.hasCooler || this.settings.hasEvap) {
             validStates.push(Characteristic.TargetHeaterCoolerState.COOL);
         }
 
@@ -87,7 +87,7 @@ class RinnaiTouchHeaterCooler extends RinnaiTouchTemperature {
     }
 
     setEventHandlers() {
-        this.debug(this.constructor.name, 'setEventHandlers');
+        this.log.debug(this.constructor.name, 'setEventHandlers');
 
         let service = this.accessory.getService(Service.HeaterCooler);
         super.setEventHandlers(service);
@@ -113,7 +113,7 @@ class RinnaiTouchHeaterCooler extends RinnaiTouchTemperature {
     }
 
     getActive(status) {
-        this.debug(this.constructor.name, 'getActive', 'status');
+        this.log.debug(this.constructor.name, 'getActive', 'status');
 
         let path = this.map.getPath('State', status.mode);
         let state = status.getState(path);
@@ -125,7 +125,7 @@ class RinnaiTouchHeaterCooler extends RinnaiTouchTemperature {
     }
 
     getCurrentHeaterCoolerState(status) {
-        this.debug(this.constructor.name, 'getCurrentHeaterCoolerState', 'status');
+        this.log.debug(this.constructor.name, 'getCurrentHeaterCoolerState', 'status');
 
         let path = this.map.getPath('Active', status.mode, this.accessory.context.zone);
         let state = status.getState(path);
@@ -140,7 +140,7 @@ class RinnaiTouchHeaterCooler extends RinnaiTouchTemperature {
     }
 
     getTargetHeaterCoolerState(status) {
-        this.debug(this.constructor.name, 'getTargetHeaterCoolerState', 'status');
+        this.log.debug(this.constructor.name, 'getTargetHeaterCoolerState', 'status');
 
         if (status.mode === 'HGOM')
             return Characteristic.TargetHeaterCoolerState.HEAT;
@@ -149,7 +149,7 @@ class RinnaiTouchHeaterCooler extends RinnaiTouchTemperature {
     }
 
     getThresholdTemperature(status) {
-        this.debug(this.constructor.name, 'getThresholdTemperature', 'status');
+        this.log.debug(this.constructor.name, 'getThresholdTemperature', 'status');
 
         let path = this.map.getPath('TargetTemp', status.mode, this.accessory.context.zone);
         let state = status.getState(path);
@@ -161,7 +161,7 @@ class RinnaiTouchHeaterCooler extends RinnaiTouchTemperature {
     }
 
     setActive(value, status) {
-        this.debug(this.constructor.name, 'setActive', value, 'status');
+        this.log.debug(this.constructor.name, 'setActive', value, 'status');
 
         let commands = [];
 
@@ -187,7 +187,7 @@ class RinnaiTouchHeaterCooler extends RinnaiTouchTemperature {
     }
 
     setTargetHeaterCoolerState(value, status) {
-        this.debug(this.constructor.name, 'setTargetHeaterCoolerState', value, 'status');
+        this.log.debug(this.constructor.name, 'setTargetHeaterCoolerState', value, 'status');
 
         let commands = [];
 
@@ -211,10 +211,10 @@ class RinnaiTouchHeaterCooler extends RinnaiTouchTemperature {
             case Characteristic.TargetHeaterCoolerState.COOL:
                 path = this.map.getPath('Mode');
                 expect = {
-                    path: this.map.getPath(this.config.hasCooler ? 'CoolState' : 'EvapState'),
+                    path: this.map.getPath(this.settings.hasCooler ? 'CoolState' : 'EvapState'),
                     state: 'N'
                 };
-                commands.push(this.getCommand(path, this.config.hasCooler ? 'C' : 'E', expect));
+                commands.push(this.getCommand(path, this.settings.hasCooler ? 'C' : 'E', expect));
                 break;
             case Characteristic.TargetHeaterCoolerState.AUTO:
                 path = this.map.getPath('Operation', status.mode, this.accessory.context.zone);
@@ -232,7 +232,7 @@ class RinnaiTouchHeaterCooler extends RinnaiTouchTemperature {
     }
 
     setThresholdTemperature(value, status) {
-        this.debug(this.constructor.name, 'setThresholdTemperature', value, 'status');
+        this.log.debug(this.constructor.name, 'setThresholdTemperature', value, 'status');
 
         let commands = [];
 
@@ -248,7 +248,7 @@ class RinnaiTouchHeaterCooler extends RinnaiTouchTemperature {
     }
 
     updateValues(status) {
-        this.debug(this.constructor.name, 'updateValues', 'status');
+        this.log.debug(this.constructor.name, 'updateValues', 'status');
         
         let service = this.accessory.getService(Service.HeaterCooler);
         super.updateValues(status, service);

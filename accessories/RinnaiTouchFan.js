@@ -5,7 +5,7 @@ let Accessory, Service, Characteristic, UUIDGen
 class RinnaiTouchFan extends RinnaiTouchAccessory {
     constructor(platform) {
         super(platform);
-        this.debug(this.constructor.name, undefined, 'platform');
+        this.log.debug(this.constructor.name, undefined, 'platform');
 
         this.name = 'Fan';
 
@@ -16,7 +16,7 @@ class RinnaiTouchFan extends RinnaiTouchAccessory {
     }
 
     init(name, status) {
-        this.debug(this.constructor.name, 'init', name, 'status');
+        this.log.debug(this.constructor.name, 'init', name, 'status');
         
         let accessoryName = this.name;
         let uuid = UUIDGen.generate(accessoryName);
@@ -32,7 +32,7 @@ class RinnaiTouchFan extends RinnaiTouchAccessory {
     }
 
     setEventHandlers() {
-        this.debug(this.constructor.name, 'setEventHandlers');
+        this.log.debug(this.constructor.name, 'setEventHandlers');
 
         let service = this.accessory.getService(Service.Fan);
         service
@@ -47,7 +47,7 @@ class RinnaiTouchFan extends RinnaiTouchAccessory {
     }
 
     getFanOn(status) {
-        this.debug(this.constructor.name, 'getFanOn', 'status');
+        this.log.debug(this.constructor.name, 'getFanOn', 'status');
 
         let path = this.map.getPath('State', status.mode);
         let state = status.getState(path);
@@ -62,7 +62,7 @@ class RinnaiTouchFan extends RinnaiTouchAccessory {
     }
 
     getFanRotationSpeed(status) {
-        this.debug(this.constructor.name, 'getFanRotationSpeed', 'status');
+        this.log.debug(this.constructor.name, 'getFanRotationSpeed', 'status');
 
         let path = this.map.getPath('FanSpeed', status.mode);
         let state = status.getState(path);
@@ -74,7 +74,7 @@ class RinnaiTouchFan extends RinnaiTouchAccessory {
     }
 
     setFanOn(value, status) {
-        this.debug(this.constructor.name, 'setFanOn', value, 'status');
+        this.log.debug(this.constructor.name, 'setFanOn', value, 'status');
 
         let commands = [];
 
@@ -101,7 +101,7 @@ class RinnaiTouchFan extends RinnaiTouchAccessory {
     }
 
     setFanRotationSpeed(value, status) {
-        this.debug(this.constructor.name, 'setFanRotationSpeed', value, 'status');
+        this.log.debug(this.constructor.name, 'setFanRotationSpeed', value, 'status');
 
         let commands = [];
 
@@ -118,7 +118,7 @@ class RinnaiTouchFan extends RinnaiTouchAccessory {
     }
 
     updateValues(status) {
-        this.debug(this.constructor.name, 'updateValues', 'status');
+        this.log.debug(this.constructor.name, 'updateValues', 'status');
         
         let service = this.accessory.getService(Service.Fan);
         service
