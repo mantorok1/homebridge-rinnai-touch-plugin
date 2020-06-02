@@ -385,7 +385,9 @@ class HomeAssistantFormat {
                     ? accessory.setTargetTemperature.bind(accessory)
                     : accessory.setThresholdTemperature.bind(accessory);
 
-                await accessory.setCharacteristicValue(setValue, zoneTemps[zone], () => {});
+                let targetTemp = parseInt(zoneTemps[zone]);
+
+                await accessory.setCharacteristicValue(setValue, targetTemp, () => {});
             }
         }
         catch(error) {

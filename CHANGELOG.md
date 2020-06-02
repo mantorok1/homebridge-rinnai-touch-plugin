@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.3.2 (2020-06-02)
+
+* [FIX] Ignore decimal place when setting temperature via Home Assistant HVAC
+
 ## 2.3.1 (2020-06-02)
 
 * Replace Simple MQTT format with Home Assistant HVAC specific one
