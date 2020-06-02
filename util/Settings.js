@@ -64,10 +64,13 @@ class Settings {
                 port: config.port === undefined ? 1883 : config.port,
                 username: config.username,
                 password: config.password,
-                publishTopic: config.publishTopic || 'RinnaiTouchStatus',
-                subscribeTopic: config.subscribeTopic || 'RinnaiTouchCommand',
-                publishFrequency: config.publishFrequency === undefined ? 60 : config.publishFrequency,
-                nativePayloads: config.nativePayloads === undefined ? false : config.nativePayloads
+                topicPrefix: config.topicPrefix,
+                formatNative: config.formatNative || false,
+                formatHomeAssistant: config.formatHomeAssistant || false,
+                publishCommandProcessed: config.publishCommandProcessed || false,
+                publishStatusChanged: config.publishStatusChanged || false,
+                publishIntervals: config.publishIntervals || false,
+                publishFrequency: config.publishFrequency === undefined ? 60 : config.publishFrequency
             }
         }
 

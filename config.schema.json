@@ -102,29 +102,36 @@
             "title": "Password",
             "type": "string"
           },
-          "publishTopic": {
-            "title": "Publish Topic Name",
-            "type": "string",
-            "placeholder": "RinnaiTouchStatus"
+          "topicPrefix": {
+            "title": "Topic Prefix",
+            "type": "string"
           },
-          "subscribeTopic": {
-            "title": "Subscription Topic Name",
-            "type": "string",
-            "placeholder": "RinnaiTouchCommand"
+          "formatNative": {
+            "title": "Native Rinnai Touch",
+            "type": "boolean"
+          },
+          "formatHomeAssistant": {
+            "title": "Home Assistant HVAC",
+            "type": "boolean"
+          },
+          "publishCommandProcessed": {
+            "title": "After command processed",
+            "type": "boolean"
+          },
+          "publishStatusChanged": {
+            "title": "When status has changed [NOT YET IMPLEMENTED]",
+            "type": "boolean"
+          },
+          "publishIntervals": {
+            "title": "At regular intervals",
+            "type": "boolean"
           },
           "publishFrequency": {
             "title": "Publish Frequency (secs)",
-            "description": "How often the status will be published (0 = don't publish)",
             "type": "number",
             "placeholder": 60,
-            "minimum": 0,
+            "minimum": 1,
             "maximum": 86400
-           },
-           "nativePayloads": {
-             "title": "Use Native Status/Command payloads",
-             "type": "boolean",
-             "default": false,
-             "required": false
            }
         }
       },
@@ -176,7 +183,7 @@
     },
     {
       "type": "fieldset",
-      "title": "Optional Settings",
+      "title": "Accessory Settings",
       "expandable": true,
       "expanded": false,
       "items": [
@@ -194,22 +201,42 @@
       "expanded": false,
       "items": [
         {
-            "type": "flex",
-            "flex-flow": "row wrap",
-            "items": [ "mqtt.host", "mqtt.port" ] 
+          "type": "flex",
+          "flex-flow": "row wrap",
+          "items": [ "mqtt.host", "mqtt.port" ] 
         },
         {
-            "type": "flex",
-            "flex-flow": "row wrap",
-            "items": [ "mqtt.username", "mqtt.password" ] 
+          "type": "flex",
+          "flex-flow": "row wrap",
+          "items": [ "mqtt.username", "mqtt.password" ] 
         },
         {
-            "type": "flex",
-            "flex-flow": "row wrap",
-            "items": [ "mqtt.publishTopic", "mqtt.subscribeTopic" ] 
+          "type": "flex",
+          "flex-flow": "row wrap",
+          "items": [ "mqtt.topicPrefix" ] 
         },
-        "mqtt.publishFrequency",
-        "mqtt.nativePayloads"
+        {
+          "type": "section",
+          "title": "Select message format(s):",
+          "expandable": false,
+          "expanded": true,
+          "items": [
+            "mqtt.formatNative",
+            "mqtt.formatHomeAssistant"
+          ]
+        },
+        {
+          "type": "section",
+          "title": "Select publish event(s):",
+          "expandable": false,
+          "expanded": true,
+          "items": [
+            "mqtt.publishCommandProcessed",
+            "mqtt.publishStatusChanged",
+            "mqtt.publishIntervals",
+            "mqtt.publishFrequency"
+          ]
+        }
       ]
     },
     {

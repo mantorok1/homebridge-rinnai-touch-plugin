@@ -530,7 +530,7 @@ class SimplePayload {
     }
 
     getZoneValues(value, count) {
-        this.#log.debug(this.constructor.name, 'getZones', value, count);
+        this.#log.debug(this.constructor.name, 'getZoneValues', value, count);
 
         if (typeof value === 'object')
             return value;

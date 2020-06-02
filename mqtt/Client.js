@@ -1,11 +1,12 @@
 const mqtt = require("async-mqtt");
-const NativePayload = require('./NativePayload');
-const SimplePayload = require('./SimplePayload');
+const NativeFormat = require('./NativeFormat');
+const HomeAssistantFormat = require('./HomeAssistantFormat');
 
 class Client {
     #log;
     #settings;
-    #payload;
+    #topicPrefix = '';
+    #formats = [];
 
     constructor(platform) {
         this.#log = platform.log;
@@ -17,38 +18,85 @@ class Client {
         }
 
         this.#settings = platform.settings;
-        this.#payload = this.#settings.mqtt.nativePayloads
-            ? new NativePayload(platform)
-            : new SimplePayload(platform);
+
+        if (this.#settings.mqtt.topicPrefix) {
+            this.#topicPrefix = `${this.#settings.mqtt.topicPrefix}/`;
+        }
+
+        this.#log.info(this.#settings.mqtt.formatNative);
+        this.#log.info(this.#settings.mqtt.formatHomeAssistant);
+
+        if (this.#settings.mqtt.formatNative) {
+            this.#formats.push(new NativeFormat(platform));
+        }
+        if (this.#settings.mqtt.formatHomeAssistant) {
+            this.#formats.push(new HomeAssistantFormat(platform));
+        }
 
         this.init();
     }
 
     async init() {
-        this.#log.debug(this.constructor.name, 'connect');
+        try {
+            this.#log.debug(this.constructor.name, 'init');
 
-        const client = await this.connect();
-
-        // Publish
-        if (this.#settings.mqtt.publishFrequency === 0) {
-            this.#log.info(`MQTT Publish: Off`)
-        } else {
-            this.#log.info(`MQTT Publish: On`)
-            setInterval(async() => {
-                const payload = await this.#payload.getStatus();
-                await client.publish(this.#settings.mqtt.publishTopic, payload);
-                this.#log.info(`Published: ${this.#settings.mqtt.publishTopic}, Payload: ${payload}`);
+            const client = await this.connect();
     
-            }, this.#settings.mqtt.publishFrequency * 1000);
-        }
-
-        // Subscribe
-        await client.subscribe(this.#settings.mqtt.subscribeTopic);
-        client.on('message', (topic, payload) => {
-            if (topic === this.#settings.mqtt.subscribeTopic) {
-                this.#payload.processCommand(payload);
+            // Publish at intervals
+            if (this.#settings.mqtt.publishIntervals) {
+                setInterval(async() => {
+                    this.publish(client);
+                }, this.#settings.mqtt.publishFrequency * 1000);
             }
-        });
+
+            // Subscribe
+            for(let i in this.#formats) {
+                const topics = this.#formats[i].subscriptionTopics;
+                for(let j in topics) {
+                    let topic = `${this.#topicPrefix}${topics[j]}`;
+                    this.#log.info(`Subscribe: ${topic}`);
+                    await client.subscribe(topic);
+                }               
+            }
+
+            client.on('message', (topic, payload) => {
+                this.#log.info(`Received: ${topic}, Payload: ${payload}`);
+                topic = topic.replace(this.#topicPrefix, '');
+                
+                for(let i in this.#formats) {
+                    const topics = this.#formats[i].subscriptionTopics;
+
+                    if (topics.includes(topic)) {
+                        this.#formats[i].processCommandMessage(topic, payload.toString());
+
+                        if (this.#settings.mqtt.publishCommandProcessed) {
+                            this.publish(client);
+                        } 
+                    }
+                }
+            });
+        }
+        catch(error) {
+            this.#log.error(error);
+        }
+    }
+
+    async publish(client) {
+        this.#log.debug(this.constructor.name, 'publish', 'client');
+
+        try {
+            for(let i in this.#formats) {
+                const messages = await this.#formats[i].getStatusMessages();
+                for(let i in messages) {
+                    let topic = `${this.#topicPrefix}${messages[i].topic}`;
+                    this.#log.info(`Publish: ${topic}, Payload: ${messages[i].payload}`);
+                    await client.publish(topic, messages[i].payload);
+                }
+            }
+        }
+        catch(error) {
+            this.#log.error(error);
+        }
     }
 
     async connect() {

@@ -1,6 +1,10 @@
 # Change Log
 
-This file provides an overview of the notable changes for each version of the plugin.
+All notable changes to this project will be documented in this file.
+
+## 2.3.1 (2020-06-02)
+
+* Replace Simple MQTT format with Home Assistant HVAC specific one
 
 ## 2.3.0 (2020-05-26)
 

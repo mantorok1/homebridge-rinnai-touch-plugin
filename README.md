@@ -13,7 +13,7 @@ Functions available:
 * Turning the water pump On and Off (for Evaporative Cooling only)
 * Advancing to the next period of the Programme Schedule. (eg. Leave -> Return)
 * Switching between Manual and Schedule control modes
-* MQTT client
+* MQTT client. See [MQTT.md](docs/MQTT.md) for details.
 
 ## Accessories
 
@@ -27,74 +27,6 @@ This plugin will add one or more accessories to the Home app depending on your R
 |Pump|Displays the current state of the pump if you have Evaporative Cooling. Allows you to turn it On or Off<br/>NOTE: The pump can only be used when the Thermostat is in `COOL` mode.|
 |Advance Period Switch|Shows if the Period of the Programme Schedule has been advanced and allows you to change it|
 |Manual Switch|Shows if the Manual mode is On or Off and allows you to change it|
-
-## MQTT Client
-
-The plugin supports publishing status information at specified intervals as well as subscribing to commands to allow control via other MQTT clients. Two formats of payload are available:
-* Native - Rinnai Touch Module status and commands
-* Simple - Simpilified status and command based on Homebridge accessory characteristics
-
-### Native Payload
-
-The raw status from the module is published without the sequence number (ie. just the JSON). Commands need to be in the following format:
-
-    {Group1: {Group2: {Command: "value"}}}
-
-See the [Rinnai Touch Module WiFi API](https://hvac-api-docs.s3.us-east-2.amazonaws.com/NBW2API_Iss1.3.pdf) for more details. 
-
-### Simple Payload
-
-The structure of the status information is based on the characteristics of the plugin accessories. The status inforamtion is in one of the following formats depending on if it apply to zones or not:
-
-    Key: Value
-
-    Key: {A: Value1, B: Value2, ... }
-
-Example Status Payload:
-
-    {
-        TargetState: "heat",
-        CurrentState: "idle",
-        TargetTemp: 22,
-        CurrentTemp: 22.2,
-        ZoneOn: {A: true, B: true },
-        ManualOn: false,
-        AdvancePeriodOn: false,
-        FanOn: false,
-        FanSpeed: 50
-    }
-
-Commands can be in one of the following formats. Only 1 command is permitted at a time.
-
-    {Key: Value}
-
-    {Key: {A: Value1, B: Value2, ... }}
-
-Example Command Payload:
-
-    {TargetState: "heat"}
-
-The folllowing table describes the contents of the MQTT simple payload.
-
-|Key|Command|Zones|Values|Description|
-|-|-|-|-|-|
-|TargetState|Yes|Yes|`off`,`heat`,`cool`,`auto`|HVAC mode (`auto` is only applicable for commands)|
-|CurrentState|No|Yes|`idle`,`heating`,`cooling`|HVAC state|
-|TargetTemp|Yes|Yes|`nn` (8 - 30)|Target Temperature (in Celcius)|
-|CurrentTemp|No|Yes|`nn.n`|Current Temperature (in Celcius)|
-|ZoneOn|Yes|Yes|`true`,`false`|Zone is on|
-|AdvancePeriodOn|Yes|Yes|`true`,`false`|Advance period is on|
-|ManualOn|Yes|Yes|`true`,`false`|Manual Operation Control is on|
-|FanOn|Yes|No|`true`,`false`|Fan is on|
-|FanSpeed|Yes|No|`nnn` (1 - 100)|Fan speed|
-|PumpOn|Yes|No|`true`,`false`|Pump is on (for evaporative cooling)|
-
-NOTES:
-* `Command` indicates that the key can be used in commands.
-* `Zones` indicates that multiple zones are supported.
-*  For commands, if specific zones are not defined in the payload then ALL zones are assumed. eg. `{ZoneOn: true}` will turn on all zones.
-
-See **MQTT Settings** section below on how to configure.
 
 ## Installation
 Note: This plugin requires homebridge to be installed first.
@@ -125,8 +57,8 @@ NOTE: Homebridge version 1.0.0 and onwards require an entry in the config.json f
 |closeConnectionDelay|The time (ms) to wait for the TCP connection to fully close. Increasing this may reduce `Connection Refused` errors from occuring|`1100`|
 |clearCache|Clear all the plugin's cached accessories from homebridge to force full discovery of accessories on restart|`false`|
 |debug|Output debug information to the Homebridge log|`false`|
-|mqtt|MQTT settings. See **MQTT Settings** section below|`{}`|
-|maps|Map overrides. See **Map Overrides** section below|`{}`|
+|mqtt|See [MQTT.md](docs/MQTT.md) for details|`{}`|
+|maps|See [MapOverrides.md](docs/MapOverrides.md) for details|`{}`|
 
 #### Example: Bare mimimum (requried for Homebridge 1.0.0 onwards)
 
@@ -148,100 +80,19 @@ NOTE: Homebridge version 1.0.0 and onwards require an entry in the config.json f
         }
     ],
 
-#### Example: Two Controllers with map override & clear cached accessories
+#### Example: Two Controllers with no Auto, Advance Period & Manual switches
+This is useful if you only use Manual Control of your HVAC (ie. no programme schedules).
 
     "platforms": [
         {
             "platform": "RinnaiTouchPlatform",
             "name": "Rinnai Touch",
             "controllers": 2,
-            "maps": {
-                "HeatOperation": "HGOM.Z{zone}O.OP"
-            },
-            "clearCache": true
+            "showAuto": false,
+            "showAdvanceSwitches": false,
+            "showManualSwitches": false
         }
     ],
-
-### MQTT Settings
-
-This section describes the configuration options for the plugin to operate as an MQTT client. The following is a sample config:
-
-    "mqtt": {
-        "host": "mqtt://localhost",
-        "port": 1883,
-        "username": "mantorok",
-        "password": "password",
-        "publishTopic": "RinnaiTouchStatus",
-        "subscribeTopic": "RinnaiTouchCommand",
-        "publishFrequency": 60,
-        "nativePayloads": false
-    },
-
-|Option|Description|Default Value (if not supplied)|
-|-|-|-|
-|host|MQTT Broker host name||
-|port|MQTT Broker port|`1883`|
-|username|Credentials for MQTT Broker||
-|password|||
-|publishTopic|Topic name for publishing|`RinnaiTouchStatus`|
-|subscribeTopic|Topic name for subscribing|`RinnaiTouchCommand`|
-|publishFrequency|How often the status will be published in seconds (0 = don't publish)|`60`|
-|nativePayloads|Use the Rinnai Touch WiFi module's native status & commands in payloads|`false`|
-
-### Map Overrides
-After releasing the first version of this plugin some have encountered issues as their modules show a different status structure to my own one. Zones in particular seem to be implemented in many ways. Using the status from other people's system (thanks mitchmario & FrontBottom) I've tried to cater to as many combinations as possible.
-
-However, if it doesn't work fully for your system I've introduced a way to override the mapping between the HomeKit and the Rinnai Touch.
-
-WARNING: This section is a bit technical and not for the faint hearted.
-
-Here's an example of a map override:
-
-    "maps": {
-        "HeatOperation": "HGOM.Z{zone}O.OP",
-        "CoolOperation": "CGOM.Z{zone}O.OP"
-    },
-
-
-The key name (eg. `HeatOperation`) is used by the plugin to identify the type of status/command.<br/>
-The string value (eg. `HGOM.Z{zone}O.OP`) identifies where in the Rinnai status JSON blob to get/set the value. There is a special placeholder named {zone} which the plugin will replace by the appropriate letter corresponding to a zone (ie. A, B, C or D).<br/>
-In the example it means `HGOM.ZAO.OP` for Zone A, `HGOM.ZBO.OP` for Zone B and so on.<br/>
-
-The following table lists all the keys that are supported:
-
-|Key|Description|Supported Values|Default|
-|-|-|-|-|
-|`Mode`|Get/Set mode [Heating, Cooling, Evaporative]|H,C,E|`SYST.OSS.MD`|
-|`TempUnits`|Get temperature display units|C,F|`SYST.CFG.TU`|
-|`HeatState`|Get/Set state [On, Off, Fan]|N,F,Z|`HGOM.OOP.ST`|
-|`HeatOperation`|Get/Set Operation [Auto, Manual]|A,M|`HGOM.GSO.OP` for 1 controller<br/>`HGOM.Z{zone}O.OP` for 2+ controllers|
-|`HeatSchedulePeriod`|Get current period of schedule [Wake, Leave, Return, Presleep, Sleep]|W,L,R,P,S|`HGOM.GSS.AT`|
-|`HeatScheduleState`|Get/Set schedule state [Now, Advance, Override]|N,A,O|`HGOM.GSO.AO` for 1 controller<br/>`HGOM.ZUO.AO` for 2+ controllers|
-|`HeatActive`|Is unit actively heating|Y,N|`HGOM.Z{zone}S.AE`|
-|`HeatCurrentTemp`|Get current temperature [nn.n degrees]|nnn|`HGOM.Z{zone}S.MT`|
-|`HeatTargetTemp`|Get/Set target temperture [nn degrees]|08 - 30|`HGOM.GSO.SP` for 1 controller<br/>`HGOM.Z{zone}O.SP` for 2+ controllers|
-|`HeatFanSpeed`|Get/Set the fan's rotation speed [nn]|01 - 16|`HGOM.OOP.FL`|
-|`HeatZoneSwitch`|Get/Set zone switch on|Y,N|`HGOM.Z{zone}O.UE`|
-|`CoolState`|Get/Set state [On, Off, Fan]|N,F,Z|`CGOM.OOP.ST`|
-|`CoolOperation`|Get/Set Operation [Auto, Manual]|A,M|`CGOM.GSO.OP` for 1 controller<br/>`CGOM.Z{zone}O.OP` for 2+ controllers|
-|`CoolSchedulePeriod`|Get current period of schedule [Wake, Leave, Return, Presleep, Sleep]|W,L,R,P,S|`CGOM.GSS.AT`|
-|`CoolScheduleState`|Get/Set schedule state [Now, Advance, Override]|N,A,O|`CGOM.GSO.AO` for 1 controller<br/>`CGOM.ZUO.AO` for 2+ controllers|
-|`CoolActive`|Is unit actively cooling|Y,N|`CGOM.Z{zone}S.AE`|
-|`CoolCurrentTemp`|Get current temperature [nn.n degrees]|nnn|`CGOM.Z{zone}S.MT`|
-|`CoolTargetTemp`|Get/Set target temperture [nn degrees]|08 - 30|`CGOM.GSO.SP` for 1 controller<br/>`CGOM.Z{zone}O.SP` for 2+ controllers|
-|`CoolFanSpeed`|Get/Set the fan's rotation speed [nn]|01 - 16|`CGOM.OOP.FL`|
-|`CoolZoneSwitch`|Get/Set zone switch on|Y,N|`CGOM.Z{zone}O.UE`|
-|`EvapState`|Get/Set state [On, Off, Fan]|N,F,Z|`ECOM.GSO.SW`|
-|`EvapOperation`|Get/Set Operation [Auto, Manual]|A,M|`ECOM.GSO.OP`|
-|`EvapSchedulePeriod`|Get current period of schedule [Wake, Leave, Return, Presleep, Sleep]|W,L,R,P,S|`ECOM.GSS.AT`|
-|`EvapScheduleState`|Get/Set schedule state [Now, Advance, Override]|N,A,O|`ECOM.GSO.AO`|
-|`EvapActive`|Is unit actively cooling|Y,N|`ECOM.GSS.ZUAE`|
-|`EvapCurrentTemp`|Get current temperature [nn.n degrees]|nnn|`ECOM.GSS.MT`|
-|`EvapFanSpeed`|Get/Set the fan's rotation speed [nn]|01 - 16|`ECOM.GSO.FL`|
-|`EvapZoneSwitch`|Get/Set zone switch on|Y,N|`ECOM.GSO.ZUUE`|
-|`EvapPump`|Get/Set Evaporative Cooling pump [On, Off]|N,F|`ECOM.GSO.PS`|
-
-where `{zone}` will be replaced by the appropriate zone (ie. A for 1st zone, B for 2nd, etc)
 
 ## Version History
 

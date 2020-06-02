@@ -29,6 +29,7 @@ let Accessory, Service, Characteristic, UUIDGen;
         "closeConnectionDelay": 1100,
         "clearCache": false,
         "debug": true,
+        "mqtt": {},
         "maps": {}
     }
 */
@@ -74,6 +75,10 @@ class RinnaiTouchPlatform {
                     catch(error) {
                         this.log.error(error);
                     }
+                });
+
+                this.api.on('shutdown', () => {
+                    this.log.info('Homebridge is shutting down');
                 });
             }
         }
