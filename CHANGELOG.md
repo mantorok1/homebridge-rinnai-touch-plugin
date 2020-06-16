@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## 2.4.0 (2020-06-17)
+## 2.4.1 (2020-06-17)
 
 * New MQTT topics & status change publication event
 * New config option for IP Address, Port & Connection Timeout
