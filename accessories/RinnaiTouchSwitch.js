@@ -13,8 +13,8 @@ class RinnaiTouchSwitch extends RinnaiTouchAccessory {
         UUIDGen = platform.UUIDGen;
     }
 
-    init(name, status, zone) {
-        this.log.debug('RinnaiTouchSwitch', 'init', name, 'status', zone);
+    init(name, zone) {
+        this.log.debug('RinnaiTouchSwitch', 'init', name, zone);
         
         let accessoryName = zone ? `${this.name} ${zone}` : this.name;
         let uuid = UUIDGen.generate(accessoryName);
@@ -27,7 +27,7 @@ class RinnaiTouchSwitch extends RinnaiTouchAccessory {
         this.accessory.addService(Service.Switch, name);
 
         this.setEventHandlers();
-        this.updateValues(status);
+        this.updateValues();
     }
 }
 

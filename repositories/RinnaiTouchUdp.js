@@ -2,13 +2,13 @@ const dgram = require('dgram');
 
 class RinnaiTouchUdp {
     #log;
+    #timeout;
+    #port = 50000;
 
     constructor(log, timeout = 5000) {
         this.#log = log;
         this.#log.debug(this.constructor.name, undefined, 'log', timeout);
-
-        this.timeout = timeout;
-        this.port = 50000;
+        this.#timeout = timeout;
     }
 
     getAddress() {
@@ -22,7 +22,7 @@ class RinnaiTouchUdp {
                 socket.removeAllListeners();
                 socket.close();
                 reject(new Error('Timeout occured. No UDP message received from Rinnai Touch Module'));
-            }, self.timeout);
+            }, self.#timeout);
     
             socket.on('message', (message, remote) => {
                 if (message.toString().substr(0, 18) === 'Rinnai_NBW2_Module') {
@@ -45,7 +45,7 @@ class RinnaiTouchUdp {
                 reject(error);
             });
     
-            socket.bind(self.port);
+            socket.bind(self.#port);
         });
     }
 }

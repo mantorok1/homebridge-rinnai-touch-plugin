@@ -15,10 +15,10 @@ class RinnaiTouchThermostat extends RinnaiTouchTemperature {
         UUIDGen = platform.UUIDGen;
     }
 
-    init(name, status, zone) {
-        this.log.debug(this.constructor.name, 'init', name, 'status', zone);
+    init(name, zone) {
+        this.log.debug(this.constructor.name, 'init', name, zone);
         
-        super.init(name, status, zone)
+        super.init(name, zone)
 
         let service = this.accessory.addService(Service.Thermostat, name);
 
@@ -46,17 +46,17 @@ class RinnaiTouchThermostat extends RinnaiTouchTemperature {
             });
 
         this.setEventHandlers();
-        this.updateValues(status);
+        this.updateValues();
     }
 
     getValidCurrentHeatingCoolingStates () {
         this.log.debug(this.constructor.name, 'getValidCurrentHeatingCoolingStates');
 
         let validStates = [Characteristic.CurrentHeatingCoolingState.OFF];
-        if (this.settings.hasHeater) {
+        if (this.service.hasHeater) {
             validStates.push(Characteristic.CurrentHeatingCoolingState.HEAT);
         }
-        if (this.settings.hasCooler || this.settings.hasEvap) {
+        if (this.service.hasCooler || this.service.hasEvaporative) {
             validStates.push(Characteristic.CurrentHeatingCoolingState.COOL);
         }
         return validStates;
@@ -66,10 +66,10 @@ class RinnaiTouchThermostat extends RinnaiTouchTemperature {
         this.log.debug(this.constructor.name, 'getValidTargetHeatingCoolingStates');
 
         let validStates = [Characteristic.TargetHeatingCoolingState.OFF];
-        if (this.settings.hasHeater) {
+        if (this.service.hasHeater) {
             validStates.push(Characteristic.TargetHeatingCoolingState.HEAT);
         }
-        if (this.settings.hasCooler || this.settings.hasEvap) {
+        if (this.service.hasCooler || this.service.hasEvaporative) {
             validStates.push(Characteristic.TargetHeatingCoolingState.COOL);
         }
         if (this.settings.showAuto) {
@@ -97,140 +97,109 @@ class RinnaiTouchThermostat extends RinnaiTouchTemperature {
             .on('set', this.setCharacteristicValue.bind(this, this.setTargetTemperature.bind(this)));
     }
 
-    getCurrentHeatingCoolingState(status) {
-        this.log.debug(this.constructor.name, 'getCurrentHeatingCoolingState', 'status');
+    getCurrentHeatingCoolingState() {
+        this.log.debug(this.constructor.name, 'getCurrentHeatingCoolingState');
 
-        let path = this.map.getPath('Active', status.mode, this.accessory.context.zone);
-        let state = status.getState(path);
+        let state = this.service.getSystemActive(this.accessory.context.zone);
 
-        if (state === undefined || state === 'N')
+        if (!state) {
             return Characteristic.CurrentHeatingCoolingState.OFF;
+        }
         
-        if (status.mode === 'HGOM')
+        if (this.service.mode === this.service.Modes.HEAT) {
             return Characteristic.CurrentHeatingCoolingState.HEAT;
+        }
 
         return Characteristic.CurrentHeatingCoolingState.COOL;
     }
 
-    getTargetHeatingCoolingState(status) {
-        this.log.debug(this.constructor.name, 'getTargetHeatingCoolingState', 'status');
+    getTargetHeatingCoolingState() {
+        this.log.debug(this.constructor.name, 'getTargetHeatingCoolingState');
 
-        let path = this.map.getPath('State', status.mode);
-        let state = status.getState(path);
+        let state = this.service.getState();
 
-        if (state === undefined || state !== 'N')
+        if (!state) {
             return Characteristic.TargetHeatingCoolingState.OFF;
+        }
 
-        if (status.mode === 'HGOM')
+        if (this.service.mode === this.service.Modes.HEAT) {
             return Characteristic.TargetHeatingCoolingState.HEAT;
-        
+        }
+             
         return Characteristic.TargetHeatingCoolingState.COOL;
     }
 
-    getTargetTemperature(status) {
-        this.log.debug(this.constructor.name, 'getTargetTemperature', 'status');
+    getTargetTemperature() {
+        this.log.debug(this.constructor.name, 'getTargetTemperature');
 
-        let path = this.map.getPath('TargetTemp', status.mode, this.accessory.context.zone);
-        let state = status.getState(path);
-
-        if (state === undefined)
-            return null;
-
-        return parseFloat(state);
+        return this.service.getTargetTemperature(this.accessory.context.zone);
     }
 
-    setTargetHeatingCoolingState(value, status) {
-        this.log.debug(this.constructor.name, 'setTargetHeatingCoolingState', value, 'status');
+    async setTargetHeatingCoolingState(value) {
+        this.log.debug(this.constructor.name, 'setTargetHeatingCoolingState', value);
 
-        let commands = [];
-
-        let currentValue = this.getTargetHeatingCoolingState(status);
-        if (currentValue === value)
-            return commands;
-
-        let path = undefined;
-        let state = undefined;
-        let expect = {};
-
-        // If not turning off and fan is on then turn off first
-        if (value !== Characteristic.TargetHeatingCoolingState.OFF) {
-            path = this.map.getPath('State', status.mode);
-            if (status.getState(path) === 'Z') {
-                commands.push(this.getCommand(path, 'F'));
-            }
+        if (this.service.getFanState() && value === Characteristic.TargetHeatingCoolingState.OFF) {
+            return;
         }
-
-        if (currentValue === Characteristic.TargetHeatingCoolingState.OFF) {
-            path = this.map.getPath('State', status.mode);
-            commands.push(this.getCommand(path, 'N'));
-        }
-
-        switch(value) {
-            case Characteristic.TargetHeatingCoolingState.OFF:
-                path = this.map.getPath('State', status.mode);
-                commands.push(this.getCommand(path, 'F'));
-                break;
-            case Characteristic.TargetHeatingCoolingState.HEAT:
-                path = this.map.getPath('Mode');
-                expect = {
-                    path: this.map.getPath('HeatState'),
-                    state: 'N'
-                };
-                commands.push(this.getCommand(path, 'H', expect));
-                break;
-            case Characteristic.TargetHeatingCoolingState.COOL:
-                path = this.map.getPath('Mode');
-                expect = {
-                    path: this.map.getPath(this.settings.hasCooler ? 'CoolState' : 'EvapState'),
-                    state: 'N'
-                };
-                commands.push(this.getCommand(path, this.settings.hasCooler ? 'C' : 'E', expect));
-                break;
-            case Characteristic.TargetHeatingCoolingState.AUTO:
-                path = this.map.getPath('Operation', status.mode, this.accessory.context.zone);
-                state = status.getState(path);
-                if (state !== 'A')
-                    commands.push(this.getCommand(path, 'A'));
-                path = this.map.getPath('ScheduleState', status.mode, this.accessory.context.zone);
-                state = status.getState(path);
-                if (state !== 'N')
-                    commands.push(this.getCommand(path, 'N'));
-                break;
-        }
-
-        return commands;
-    }
-
-    setTargetTemperature(value, status) {
-        this.log.debug(this.constructor.name, 'setTargetTemperature', value, 'status');
-
-        let commands = [];
-
-        let currentValue = this.getTargetTemperature(status);
-        if (currentValue === value)
-            return commands;
-
-        let path = this.map.getPath('TargetTemp', status.mode, this.accessory.context.zone);
-        let state = ('0' + value).slice(-2);
-        commands.push(this.getCommand(path, state));
         
-        return commands;
+        if (value === Characteristic.TargetHeatingCoolingState.OFF) {
+            await this.service.setState(false);
+            return;
+        }
+
+        if (this.service.getFanState()) {
+            await this.service.setFanState(false);
+        }
+
+        if (value === Characteristic.TargetHeatingCoolingState.HEAT) {
+            await this.service.setMode(this.service.Modes.HEAT);
+            await this.service.setState(true);
+            return;
+        }
+
+        if (value === Characteristic.TargetHeatingCoolingState.COOL) {
+            if (this.service.hasCooler) {
+                await this.service.setMode(this.service.Modes.COOL);
+            } else {
+                await this.service.setMode(this.service.Modes.EVAP);
+            }
+            await this.service.setState(true);
+            return;
+        }
+
+        if (value === Characteristic.TargetHeatingCoolingState.AUTO) {
+            await this.service.setState(true);
+            await this.service.setControlMode(this.service.ControlModes.SCHEDULE, this.accessory.context.zone);
+            await this.service.setScheduleOverride(this.service.ScheduleOverrideModes.NONE, this.accessory.context.zone);
+            // Force update values so mode switches back to correct mode
+            setTimeout(this.updateValues.bind(this), 1000);
+        }
     }
 
-    updateValues(status) {
-        this.log.debug(this.constructor.name, 'updateValues', 'status');
+    async setTargetTemperature(value) {
+        this.log.debug(this.constructor.name, 'setTargetTemperature', value);
+
+        if (this.getTargetTemperature() === value) {
+            return;
+        }
+
+        await this.service.setTargetTemperature(value, this.accessory.context.zone);
+    }
+
+    updateValues() {
+        this.log.debug(this.constructor.name, 'updateValues');
         
         let service = this.accessory.getService(Service.Thermostat);
-        super.updateValues(status, service);
+        super.updateValues(service);
 
         service.getCharacteristic(Characteristic.CurrentHeatingCoolingState)
-            .updateValue(this.getCurrentHeatingCoolingState(status));
+            .updateValue(this.getCurrentHeatingCoolingState());
 
         service.getCharacteristic(Characteristic.TargetHeatingCoolingState)
-            .updateValue(this.getTargetHeatingCoolingState(status));
+            .updateValue(this.getTargetHeatingCoolingState());
 
         service.getCharacteristic(Characteristic.TargetTemperature)
-            .updateValue(this.getTargetTemperature(status));
+            .updateValue(this.getTargetTemperature());
     }
 }
 

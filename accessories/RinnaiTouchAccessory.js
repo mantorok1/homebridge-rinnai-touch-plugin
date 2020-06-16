@@ -14,8 +14,7 @@ class RinnaiTouchAccessory {
         UUIDGen = platform.UUIDGen;
 
         this.settings = platform.settings;
-        this.map = platform.map;
-        this.server = platform.server;
+        this.service = platform.service;
         this.accessory = null;
     }
 
@@ -52,11 +51,19 @@ class RinnaiTouchAccessory {
             .setCharacteristic(Characteristic.FirmwareRevision, PluginVersion);
     }
 
+    setEventHandlers() {
+        this.log.debug('RinnaiTouchAccessory', 'setEventHandlers');
+
+        this.service.on('updated', () => {
+            this.updateValues();
+        });
+    }
+
     async getCharacteristicValue(getValue, callback) {
         this.log.debug('RinnaiTouchAccessory', 'getCharacteristicValue', 'getValue', 'callback');
         try {
-            let status = await this.server.getStatus();
-            let value = getValue(status);
+            await this.service.updateStates();
+            let value = getValue();
 
             callback(null, value);
         }
@@ -69,49 +76,17 @@ class RinnaiTouchAccessory {
     async setCharacteristicValue(setValue, value, callback) {
         this.log.debug('RinnaiTouchAccessory', 'setCharacteristic', 'setValue', value, 'callback');
         try {
-            let status = await this.server.getStatus();
-            let commands = setValue(value, status);
-
-            for(let command of commands) {
-                if (command !== undefined) {
-                    await this.server.sendCommand(command);
-                }
-            }
-            
+            await setValue(value);
+ 
             callback(null);
+
+            await this.service.updateStates();
         }
         catch(error) {
             this.log.error(error);
             callback(error);
         }
-    }
-
-    getCommand(path, state, expect) {
-        this.log.debug('RinnaiTouchAccessory', 'getCommand', path, state, JSON.stringify(expect));
-
-        if (path === undefined) {
-            this.log.warn('Cannot determine path for command');
-            return undefined;
-        }
-
-        if (state === undefined) {
-            this.log.warn('Unable to determine state for command');
-            return undefined;
-        }
-
-        if (expect === undefined) {
-            expect = {
-                path: path,
-                state: state
-            }
-        }
-
-        path = path.split('.');
-        return {
-            instruction: `N000001{"${path[0]}":{"${path[1]}":{"${path[2]}":"${state}"}}}`,
-            expect: expect
-        };
-    }
+    }    
 }
 
 module.exports = RinnaiTouchAccessory;

@@ -17,6 +17,7 @@ class RinnaiTouchAdvanceSwitch extends RinnaiTouchSwitch {
 
     setEventHandlers() {
         this.log.debug(this.constructor.name, 'setEventHandlers');
+        super.setEventHandlers();
 
         this.accessory.getService(Service.Switch)
             .getCharacteristic(Characteristic.On)
@@ -24,45 +25,35 @@ class RinnaiTouchAdvanceSwitch extends RinnaiTouchSwitch {
             .on('set', this.setCharacteristicValue.bind(this, this.setAdvanceSwitchOn.bind(this)));
     }
 
-    getAdvanceSwitchOn(status) {
-        this.log.debug(this.constructor.name, 'getAdvanceSwitchOn', 'status');
+    getAdvanceSwitchOn() {
+        this.log.debug(this.constructor.name, 'getAdvanceSwitchOn');
 
-        let path = this.map.getPath('ScheduleState', status.mode, this.accessory.context.zone);
-        let state = status.getState(path);
+        let state = this.service.getScheduleOverride(this.accessory.context.zone);
 
-        if (state === undefined)
-            return false;
-
-        return state === 'A';
+        return state === this.service.ScheduleOverrideModes.ADVANCE;
     }
 
-    setAdvanceSwitchOn(value, status) {
-        this.log.debug(this.constructor.name, 'setAdvanceSwitchOn', value, 'status');
+    async setAdvanceSwitchOn(value) {
+        this.log.debug(this.constructor.name, 'setAdvanceSwitchOn', value);
 
-        let commands = [];
+        if (this.getAdvanceSwitchOn() === value) {
+            return;
+        }
 
-        let currentValue = this.getAdvanceSwitchOn(status);
-        if (currentValue === value)
-            return commands;
+        let state = value
+            ? this.service.ScheduleOverrideModes.ADVANCE
+            : this.service.ScheduleOverrideModes.NONE;
 
-        let path = this.map.getPath('Operation', status.mode, this.accessory.context.zone);
-        let state = status.getState(path);
-        if (state !== 'A')
-            commands.push(this.getCommand(path, 'A'));
-
-        path = this.map.getPath('ScheduleState', status.mode, this.accessory.context.zone);
-        state = value ? 'A' : 'N';
-        commands.push(this.getCommand(path, state));
-
-        return commands;
+        await this.service.setControlMode(this.service.ControlModes.SCHEDULE, this.accessory.context.zone);
+        await this.service.setScheduleOverride(state, this.accessory.context.zone);
     }
 
-    updateValues(status) {
-        this.log.debug(this.constructor.name, 'updateValues', 'status');
+    updateValues() {
+        this.log.debug(this.constructor.name, 'updateValues');
         
         this.accessory.getService(Service.Switch)
             .getCharacteristic(Characteristic.On)
-            .updateValue(this.getAdvanceSwitchOn(status));
+            .updateValue(this.getAdvanceSwitchOn());
     }
 }
 

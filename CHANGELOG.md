@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.4.0 (2020-06-17)
+
+* New MQTT topics & status change publication event
+* New config option for IP Address, Port & Connection Timeout
+* Add support for Common zone
+* Removal of Map Overrides
+
 ## 2.3.2 (2020-06-02)
 
 * [FIX] Ignore decimal place when setting temperature via Home Assistant HVAC

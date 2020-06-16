@@ -10,9 +10,12 @@ class Settings {
 
         this.#settings = {
             name: config.name || 'Rinnai Touch',
-            useThermostat: (config.serviceType || 'thermostat') === 'thermostat',
-            controllers: config.controllers,
+            address: config.address,
+            port: config.port,
 
+            useHeaterCooler: config.useHeaterCooler === undefined
+                ? false
+                : config.useHeaterCooler,
             showZoneSwitches: config.showZoneSwitches,
             showFan: config.showFan === undefined ? true : config.showFan,
             showAuto: config.showAuto,
@@ -21,7 +24,10 @@ class Settings {
             
             closeConnectionDelay: config.closeConnectionDelay === undefined
                 ? 1100
-                : config.closeConnectionDelay,
+                : Math.min(config.closeConnectionDelay, 10000),
+            connectionTimeout: config.connectionTimeout === undefined
+                ? 5000
+                : Math.min(config.connectionTimeout, 300000),
             clearCache: config.clearCache === undefined ? false : config.clearCache,
             debug: config.debug === undefined ? false : config.debug,
 
@@ -29,30 +35,6 @@ class Settings {
 
             mapOverrides: config.maps || {}
         };
-    }
-
-    setStatusSettings(status) {
-        const path = {
-            HasHeater: 'SYST.AVM.HG',
-            HasCooler: 'SYST.AVM.CG',
-            HasEvap: 'SYST.AVM.EC',
-            HasMultipleControllers: 'SYST.CFG.MTSP'
-        };
-
-        this.#settings.hasHeater = status.getState(path.HasHeater) === 'Y';
-        this.#settings.hasCooler = status.getState(path.HasCooler) === 'Y';
-        this.#settings.hasEvap = status.getState(path.HasEvap) === 'Y';
-        const hasMultipleControllers = status.getState(path.HasMultipleControllers) === 'Y';
-        
-        const zones = status.getZones();
-        if (this.#settings.controllers === undefined) {
-            this.#settings.controllers = hasMultipleControllers ? zones.length : 1;
-        } else {
-            if (this.#settings.controllers > 1 && this.#settings.controllers !== zones.length) {
-                // this.#log(`WARNING: Controllers specifed does not match number of zones. Setting controllers to ${zones.length}`);
-                this.#settings.controllers = zones.length;
-            }
-        }
     }
 
     getMqttSettings(config) {
@@ -82,19 +64,21 @@ class Settings {
         return this.#settings.name;
     }
 
-    get useThermostat() {
-        return this.#settings.useThermostat;
+    get address() {
+        return this.#settings.address;
     }
 
-    get controllers() {
-        return this.#settings.controllers === undefined
-            ? 1
-            : this.#settings.controllers;
+    get port() {
+        return this.#settings.port;
+    }
+
+    get useHeaterCooler() {
+        return this.#settings.useHeaterCooler;
     }
 
     get showZoneSwitches() {
         return this.#settings.showZoneSwitches === undefined
-            ? this.controllers === 1
+            ? true
             : this.#settings.showZoneSwitches;
     }
 
@@ -104,24 +88,28 @@ class Settings {
 
     get showAuto() {
         return this.#settings.showAuto === undefined
-            ? this.controllers === 1 
+            ? true 
             : this.#settings.showAuto;
     }
 
     get showAdvanceSwitches() {
         return this.#settings.showAdvanceSwitches === undefined
-        ? this.controllers === 1
+        ? true
         : this.#settings.showAdvanceSwitches;
     }
 
     get showManualSwitches() {
         return this.#settings.showManualSwitches === undefined
-        ? this.controllers === 1 
+        ? true
         : this.#settings.showManualSwitches;
     }
 
     get closeConnectionDelay() {
         return this.#settings.closeConnectionDelay;
+    }
+
+    get connectionTimeout() {
+        return this.#settings.connectionTimeout;
     }
 
     get clearCache() {
@@ -134,18 +122,6 @@ class Settings {
 
     get mapOverrides() {
         return this.#settings.mapOverrides;
-    }
-
-    get hasHeater() {
-        return this.#settings.hasHeater;
-    }
-
-    get hasCooler() {
-        return this.#settings.hasCooler;
-    }
-
-    get hasEvap() {
-        return this.#settings.hasEvap;
     }
 
     get mqtt() {

@@ -15,8 +15,8 @@ class RinnaiTouchPump extends RinnaiTouchAccessory {
         UUIDGen = platform.UUIDGen;
     }
 
-    init(name, status) {
-        this.log.debug(this.constructor.name, 'init', name, 'status');
+    init(name) {
+        this.log.debug(this.constructor.name, 'init', name);
         
         let accessoryName = this.name;
         let uuid = UUIDGen.generate(accessoryName);
@@ -28,11 +28,12 @@ class RinnaiTouchPump extends RinnaiTouchAccessory {
         this.accessory.addService(Service.Valve, name);
 
         this.setEventHandlers();
-        this.updateValues(status);
+        this.updateValues();
     }
 
     setEventHandlers() {
         this.log.debug(this.constructor.name, 'setEventHandlers');
+        super.setEventHandlers();
 
         let service = this.accessory.getService(Service.Valve);
         service
@@ -45,59 +46,49 @@ class RinnaiTouchPump extends RinnaiTouchAccessory {
             .on('get', this.getCharacteristicValue.bind(this, this.getPumpInUse.bind(this)));
     }
 
-    getPumpActive(status) {
-        this.log.debug(this.constructor.name, 'getPumpActive', 'status');
+    getPumpActive() {
+        this.log.debug(this.constructor.name, 'getPumpActive');
 
-        let path = this.map.getPath('Pump', status.mode);
-        let state = status.getState(path);
+        let state = this.service.getPumpState();
 
-        if (state === undefined)
-            return Characteristic.Active.INACTIVE;
-
-        if (state === 'N')
-            return Characteristic.Active.ACTIVE;
-
-        return Characteristic.Active.INACTIVE;
+        return state
+            ? Characteristic.Active.ACTIVE
+            : Characteristic.Active.INACTIVE;
     }
 
-    getPumpInUse(status) {
-        this.log.debug(this.constructor.name, 'getPumpInUse', 'status');
+    getPumpInUse() {
+        this.log.debug(this.constructor.name, 'getPumpInUse');
 
-        const active = this.getPumpActive(status);
+        let state = this.service.getPumpState();
 
-        return active === Characteristic.Active.ACTIVE
+        return state
             ? Characteristic.InUse.IN_USE
             : Characteristic.InUse.NOT_IN_USE;
     }
 
-    setPumpActive(value, status) {
-        this.log.debug(this.constructor.name, 'setPumpActive', value, status);
+    async setPumpActive(value) {
+        this.log.debug(this.constructor.name, 'setPumpActive', value);
 
-        let commands = [];
+        if (this.getPumpActive() === value) {
+            return;
+        }
 
-        let currentValue = this.getPumpActive(status);
-        if (currentValue === value)
-            return commands;
+        let state = value === Characteristic.Active.ACTIVE;
 
-        let path = this.map.getPath('Pump', status.mode);
-        let state = value === Characteristic.Active.ACTIVE ? 'N' : 'F';
-
-        commands.push(this.getCommand(path, state));
-
-        return commands;
+        await this.service.setPumpState(state);
     }
 
-    updateValues(status) {
-        this.log.debug(this.constructor.name, 'updateValues', 'status');
+    updateValues() {
+        this.log.debug(this.constructor.name, 'updateValues');
         
         let service = this.accessory.getService(Service.Valve);
         service
             .getCharacteristic(Characteristic.Active)
-            .updateValue(this.getPumpActive(status));
+            .updateValue(this.getPumpActive());
 
         service
             .getCharacteristic(Characteristic.InUse)
-            .updateValue(this.getPumpInUse(status));
+            .updateValue(this.getPumpInUse());
 
         service
             .getCharacteristic(Characteristic.ValveType)

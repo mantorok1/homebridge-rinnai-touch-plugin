@@ -13,8 +13,8 @@ class RinnaiTouchTemperature extends RinnaiTouchAccessory {
         UUIDGen = platform.UUIDGen;
     }
 
-    init(name, status, zone) {
-        this.log.debug('RinnaiTouchTemperature', 'init', name, 'status', zone);
+    init(name, zone) {
+        this.log.debug('RinnaiTouchTemperature', 'init', name, zone);
 
         let accessoryName = `${this.name} ${zone}`;
         let uuid = UUIDGen.generate(accessoryName);
@@ -27,6 +27,7 @@ class RinnaiTouchTemperature extends RinnaiTouchAccessory {
 
     setEventHandlers(service) {
         this.log.debug('RinnaiTouchTemperature', 'setEventHandlers', 'service');
+        super.setEventHandlers();
 
         service.getCharacteristic(Characteristic.CurrentTemperature)
             .on('get', this.getCharacteristicValue.bind(this, this.getCurrentTemperature.bind(this)));
@@ -35,37 +36,29 @@ class RinnaiTouchTemperature extends RinnaiTouchAccessory {
             .on('get', this.getCharacteristicValue.bind(this, this.getTemperatureUnits.bind(this)));
     }
 
-    getCurrentTemperature(status) {
-        this.log.debug('RinnaiTouchTemperature', 'getCurrentTemperature', 'status');
+    getCurrentTemperature() {
+        this.log.debug('RinnaiTouchTemperature', 'getCurrentTemperature');
 
-        let path = this.map.getPath('CurrentTemp', status.mode, this.accessory.context.zone);
-        let state = status.getState(path);
-
-        if (state === undefined || state === '999')
-            return null;
-
-        return parseFloat(state) / 10.0;
+        return this.service.getCurrentTemperature(this.accessory.context.zone);
     }
 
-    getTemperatureUnits(status) {
-        this.log.debug('RinnaiTouchTemperature', 'getTemperatureUnits', 'status');
+    getTemperatureUnits() {
+        this.log.debug('RinnaiTouchTemperature', 'getTemperatureUnits');
 
-        let path = this.map.getPath('TempUnits');
-        let state = status.getState(path);
-
+        let state = this.service.getTemperatureUnits();
         return state === 'F'
             ? Characteristic.TemperatureDisplayUnits.FAHRENHEIT
             : Characteristic.TemperatureDisplayUnits.CELSIUS;    
     }
 
-    updateValues(status, service) {
-        this.log.debug('RinnaiTouchTemperature', 'updateValues', 'status', 'service');
+    updateValues(service) {
+        this.log.debug('RinnaiTouchTemperature', 'updateValues', 'service');
 
         service.getCharacteristic(Characteristic.CurrentTemperature)
-            .updateValue(this.getCurrentTemperature(status));
+            .updateValue(this.getCurrentTemperature());
 
         service.getCharacteristic(Characteristic.TemperatureDisplayUnits)
-            .updateValue(this.getTemperatureUnits(status));
+            .updateValue(this.getTemperatureUnits());
     }
 }
 

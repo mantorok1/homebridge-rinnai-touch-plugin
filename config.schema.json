@@ -13,22 +13,24 @@
         "placeholder": "Rinnai Touch",
         "required": false
       },
-      "serviceType": {
-        "title": "Service Type",
+      "address": {
+        "title": "IP Address",
+        "description": "(leave blank for automatic discovery)",
         "type": "string",
-        "default": "thermostat",
-        "oneOf": [
-          { "title": "Thermostat", "enum": ["thermostat"] },
-          { "title": "Heater Cooler", "enum": ["heatercooler"] }
-        ],
-        "required": true
+        "format": "ipv4"
       },
-      "controllers": {
-        "title": "Number of Controllers",
+      "port": {
+        "title": "Port",
         "type": "number",
-        "description": "Select 'None' for plugin to discover",
-        "enum": [1, 2, 3, 4],
-        "required": false
+        "placeholder": 27847,
+        "minimum": 0,
+        "maximum": 65535
+      },
+      "useHeaterCooler" : {
+        "title": " Use 'Heater Cooler' accessory",
+        "type": "boolean",
+        "default": false,
+        "required": false          
       },
       "showZoneSwitches": {
         "title": " Show 'Zone' switch accessories (if applicable)",
@@ -65,7 +67,15 @@
         "type": "number",
         "placeholder": 1100,
         "minimum": 0,
-        "maximum": 9999
+        "maximum": 10000
+      },
+      "connectionTimeout": {
+        "title": " Connection Timeout (ms)",
+        "description": "(-1 = never close, 0 = close immediately)",
+        "type": "number",
+        "placeholder": 5000,
+        "minimum": -1,
+        "maximum": 300000
       },
       "clearCache": {
         "title": " Clear plugin's accessory cache",
@@ -111,15 +121,11 @@
             "type": "boolean"
           },
           "formatHomeAssistant": {
-            "title": "Home Assistant HVAC",
-            "type": "boolean"
-          },
-          "publishCommandProcessed": {
-            "title": "After command processed",
+            "title": "Home Assistant",
             "type": "boolean"
           },
           "publishStatusChanged": {
-            "title": "When status has changed [NOT YET IMPLEMENTED]",
+            "title": "When status has changed",
             "type": "boolean"
           },
           "publishIntervals": {
@@ -134,52 +140,15 @@
             "maximum": 86400
            }
         }
-      },
-      "maps": {
-        "type": "object",
-        "properties": {
-          "Mode": { "type": "string", "placeholder": "SYST.OSS.MD" },
-          "TempUnits": { "type": "string",  "placeholder": "SYST.CFG.TU" },
-
-          "HeatState": { "type": "string", "placeholder": "HGOM.OOP.ST" },
-          "HeatOperation": { "type": "string", "placeholder": "HGOM.GSO.OP" },
-          "HeatSchedulePeriod": { "type": "string", "placeholder": "HGOM.GSS.AT" },
-          "HeatScheduleState": { "type": "string", "placeholder": "HGOM.GSO.AO" },
-          "HeatActive": { "type": "string", "placeholder": "HGOM.Z{zone}S.AE" },
-          "HeatCurrentTemp": { "type": "string", "placeholder": "HGOM.Z{zone}S.MT" },
-          "HeatTargetTemp": { "type": "string", "placeholder": "HGOM.GSO.SP" },
-          "HeatFanSpeed": { "type": "string", "placeholder": "HGOM.OOP.FL" },
-          "HeatZoneSwitch": { "type": "string", "placeholder": "SHGOM.Z{zone}O.UE" },
-
-          "CoolState": { "type": "string", "placeholder": "CGOM.OOP.ST" },
-          "CoolOperation": { "type": "string", "placeholder": "CGOM.GSO.OP" },
-          "CoolSchedulePeriod": { "type": "string", "placeholder": "CGOM.GSS.AT" },
-          "CoolScheduleState": { "type": "string", "placeholder": "CGOM.GSO.AO" },
-          "CoolActive": { "type": "string", "placeholder": "CGOM.Z{zone}S.AE" },
-          "CoolCurrentTemp": { "type": "string", "placeholder": "CGOM.Z{zone}S.MT" },
-          "CoolTargetTemp": { "type": "string", "placeholder": "CGOM.GSO.SP" },
-          "CoolFanSpeed": { "type": "string", "placeholder": "CGOM.OOP.FL" },
-          "CoolZoneSwitch": { "type": "string", "placeholder": "SCGOM.Z{zone}O.UE" },
-
-          "EvapState": { "type": "string", "placeholder": "ECOM.GSO.SW" },
-          "EvapOperation": { "type": "string", "placeholder": "ECOM.GSO.OP" },
-          "EvapSchedulePeriod": { "type": "string", "placeholder": "ECOM.GSS.AT" },
-          "EvapScheduleState": { "type": "string", "placeholder": "ECOM.GSO.AO" },
-          "EvapActive": { "type": "string", "placeholder": "ECOM.GSS.ZUAE" },
-          "EvapCurrentTemp": { "type": "string", "placeholder": "ECOM.GSS.MT" },
-          "EvapFanSpeed": { "type": "string", "placeholder": "ECOM.GSO.FL" },
-          "EvapZoneSwitch": { "type": "string", "placeholder": "ECOM.GSO.ZUUE" },
-          "EvapPump": { "type": "string", "placeholder": "ECOM.GSO.PS" }
-        }
       }
     }
   },
   "layout": [
     "name",
     {
-        "type": "flex",
-        "flex-flow": "row wrap",
-        "items": [ "serviceType", "controllers" ] 
+      "type": "flex",
+      "flex-flow": "row wrap",
+      "items": [ "address", "port" ] 
     },
     {
       "type": "fieldset",
@@ -187,6 +156,7 @@
       "expandable": true,
       "expanded": false,
       "items": [
+        "useHeaterCooler",
         "showZoneSwitches",
         "showFan",
         "showAuto",
@@ -231,7 +201,6 @@
           "expandable": false,
           "expanded": true,
           "items": [
-            "mqtt.publishCommandProcessed",
             "mqtt.publishStatusChanged",
             "mqtt.publishIntervals",
             "mqtt.publishFrequency"
@@ -245,78 +214,13 @@
       "expandable": true,
       "expanded": false,
       "items": [
-        "closeConnectionDelay",
+        {
+          "type": "flex",
+          "flex-flow": "row wrap",
+          "items": [ "closeConnectionDelay", "connectionTimeout" ] 
+        },
         "clearCache",
         "debug"
-      ]
-    },
-    {
-      "type": "fieldset",
-      "title": "Map Overrides",
-      "expandable": true,
-      "expanded": false,
-      "items": [
-        {
-          "type": "section",
-          "title": "System",
-          "expandable": true,
-          "expanded": false,
-          "items": [
-              "maps.Mode",
-              "maps.TempUnits"
-          ]
-        },
-        {
-          "type": "section",
-          "title": "Heating",
-          "expandable": true,
-          "expanded": false,
-          "items": [
-            "maps.HeatState",
-            "maps.HeatOperation",
-            "maps.HeatSchedulePeriod",
-            "maps.HeatScheduleState",
-            "maps.HeatActive",
-            "maps.HeatCurrentTemp",
-            "maps.HeatTargetTemp",
-            "maps.HeatFanSpeed",
-            "maps.HeatZoneSwitch"
-          ]
-        },
-        {
-          "type": "section",
-          "title": "Cooling",
-          "expandable": true,
-          "expanded": false,
-          "items": [
-            "maps.CoolState",
-            "maps.CoolOperation",
-            "maps.CoolSchedulePeriod",
-            "maps.CoolScheduleState",
-            "maps.CoolActive",
-            "maps.CoolCurrentTemp",
-            "maps.CoolTargetTemp",
-            "maps.CoolFanSpeed",
-            "maps.CoolZoneSwitch"
-          ]
-        },
-        {
-          "type": "section",
-          "title": "Evaporative Cooling",
-          "expandable": true,
-          "expanded": false,
-          "items": [
-            "maps.EvapState",
-            "maps.EvapOperation",
-            "maps.EvapSchedulePeriod",
-            "maps.EvapScheduleState",
-            "maps.EvapActive",
-            "maps.EvapCurrentTemp",
-            "maps.EvapFanSpeed",
-            "maps.EvapZoneSwitch",
-            "maps.EvapPump"
-          ]
-        }
       ]
     }
   ]

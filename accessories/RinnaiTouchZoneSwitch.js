@@ -17,6 +17,7 @@ class RinnaiTouchZoneSwitch extends RinnaiTouchSwitch {
 
     setEventHandlers() {
         this.log.debug(this.constructor.name, 'setEventHandlers');
+        super.setEventHandlers();
 
         this.accessory.getService(Service.Switch)
             .getCharacteristic(Characteristic.On)
@@ -24,40 +25,28 @@ class RinnaiTouchZoneSwitch extends RinnaiTouchSwitch {
             .on('set', this.setCharacteristicValue.bind(this, this.setZoneSwitchOn.bind(this)));
     }
 
-    getZoneSwitchOn(status) {
-        this.log.debug(this.constructor.name, 'getZoneSwitchOn', 'status');
+    getZoneSwitchOn() {
+        this.log.debug(this.constructor.name, 'getZoneSwitchOn');
 
-        let path = this.map.getPath('ZoneSwitch', status.mode, this.accessory.context.zone);
-        let state = status.getState(path);
-
-        if (state === undefined)
-            return false;
-
-        return state === 'Y';
+        return this.service.getUserEnabled(this.accessory.context.zone);
     }
 
-    setZoneSwitchOn(value, status) {
-        this.log.debug(this.constructor.name, 'setZoneSwitchOn', value, 'status');
+    async setZoneSwitchOn(value) {
+        this.log.debug(this.constructor.name, 'setZoneSwitchOn', value);
 
-        let commands = [];
+        if (this.getZoneSwitchOn() === value) {
+            return;
+        }
 
-        let currentValue = this.getZoneSwitchOn(status, this.accessory.context.zone);
-        if (currentValue === value)
-            return commands;
-
-        let path = this.map.getPath('ZoneSwitch', status.mode, this.accessory.context.zone);
-        let state = value ? 'Y' : 'N';
-        commands.push(this.getCommand(path, state));
-
-        return commands;
+        await this.service.setUserEnabled(value, this.accessory.context.zone);
     }
 
-    updateValues(status) {
-        this.log.debug(this.constructor.name, 'updateValues', 'status');
+    updateValues() {
+        this.log.debug(this.constructor.name, 'updateValues');
         
         this.accessory.getService(Service.Switch)
             .getCharacteristic(Characteristic.On)
-            .updateValue(this.getZoneSwitchOn(status));
+            .updateValue(this.getZoneSwitchOn());
     }
 }
 
