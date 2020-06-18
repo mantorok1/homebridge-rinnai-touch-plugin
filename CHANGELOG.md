@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.4.2 (2020-06-18)
+
+* Add 'retain' option to MQTT publish
+* Improve time to detect command updates
+
 ## 2.4.1 (2020-06-17)
 
 * New MQTT topics & status change publication event

@@ -152,32 +152,39 @@ class RinnaiTouchRepository extends EventEmitter {
         return `N${sequenceNumber}${request.command}`;
     }
 
-    async commandSucceeded(command) {
+    commandSucceeded(command) {
         this.#log.debug(this.constructor.name, 'commandSucceeded', command);
 
-        try {
-            let json = JSON.parse(command.substr(7));
-            let group1 = Object.keys(json)[0];
-            let group2 = Object.keys(json[group1])[0];
-            let cmd = Object.keys(json[group1][group2])[0];
-            let state = json[group1][group2][cmd];
-            let item = group1 === 'SYST' ? 0 : 1;
+        let json = JSON.parse(command.substr(7));
+        let group1 = Object.keys(json)[0];
+        let group2 = Object.keys(json[group1])[0];
+        let cmd = Object.keys(json[group1][group2])[0];
+        let state = json[group1][group2][cmd];
+        let item = group1 === 'SYST' ? 0 : 1;
 
-            const startTime = Date.now();
-            while(Date.now() - startTime < 10000) {
-                await this.delay(500);
+        return new Promise((resolve, reject) => {
+            try {
+                const startTime = Date.now();
 
-                if (this.#status[item][group1][group2][cmd] === state) {
-                    this.#log.info(`Command succeeded. Took ${Date.now() - startTime} ms`);
-                    return true;
-                }
+                let timer = setTimeout(() => {
+                    this.removeAllListeners('status');
+                    resolve(false);
+                }, 10000);
+
+                this.on('status', (status) => {
+                    if (status[item][group1][group2][cmd] === state) {
+                        clearTimeout(timer);
+                        this.#log.info(`Command succeeded. Took ${Date.now() - startTime} ms`);
+                        this.removeAllListeners('status');
+                        resolve(true);
+                    }
+                });
             }
-            return false;
-        }
-        catch(error) {
-            this.#log.error(error);
-            return false;
-        }
+            catch(error) {
+                this.removeAllListeners('status');
+                reject(error);
+            }
+        });
     }
 
     async drained() {

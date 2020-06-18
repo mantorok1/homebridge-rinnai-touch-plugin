@@ -10,7 +10,6 @@ class NativeClient extends ClientBase {
         this.#repository = repository;
 
         this.setPublications();
-        this.publishStatus();
     }
 
     get subscriptionTopics() {
@@ -22,10 +21,7 @@ class NativeClient extends ClientBase {
 
         // Publish at intervals
         if (this.settings.publishIntervals) {
-            setInterval(async () => {
-                let status = await this.#repository.execute({type: 'get'});
-                this.publish('native/get', JSON.stringify(status)); 
-            }, this.settings.publishFrequency * 1000);
+            setInterval(this.publishStatus.bind(this), this.settings.publishFrequency * 1000);
         }
 
         // Publish on status change
@@ -33,6 +29,11 @@ class NativeClient extends ClientBase {
             this.#repository.on('status', (status) => {
                 this.publish('native/get', status);
             });
+        }
+
+        // Initial publication
+        if (this.settings.publishIntervals || this.settings.publishStatusChanged) {
+            setTimeout(this.publishStatus.bind(this), 1000);
         }
     }
 

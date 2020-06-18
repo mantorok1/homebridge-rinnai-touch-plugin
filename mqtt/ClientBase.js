@@ -82,7 +82,7 @@ class ClientBase {
 
             topic = `${this.#topicPrefix}${topic}`;
             this.log.info(`Publish: ${topic}, Payload: ${payload}`);
-            await this.#client.publish(topic, payload);
+            await this.#client.publish(topic, payload, {retain: true});
         }
         catch(error) {
             this.log.error(error);

@@ -54,10 +54,12 @@ class HomeAssistantClient extends ClientBase {
         }
 
         // Initial publication
-        setTimeout(async () => {
-            await this.#service.updateStates();
-            this.publishChanges();
-        }, 1000);
+        if (this.settings.publishIntervals || this.settings.publishStatusChanged) {
+            setTimeout(async () => {
+                await this.#service.updateStates();
+                this.publishChanges();
+            }, 1000);
+        }
     }
 
     publishChanges() {
