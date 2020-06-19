@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.4.3 (2020-06-19)
+
+* [FIX] Publish delay after processing command
+
 ## 2.4.2 (2020-06-18)
 
 * Add 'retain' option to MQTT publish

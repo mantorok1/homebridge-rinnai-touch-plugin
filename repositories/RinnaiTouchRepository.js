@@ -161,27 +161,32 @@ class RinnaiTouchRepository extends EventEmitter {
         let cmd = Object.keys(json[group1][group2])[0];
         let state = json[group1][group2][cmd];
         let item = group1 === 'SYST' ? 0 : 1;
+        let timer;
+        let startTime;
+        let checkStatus;
 
         return new Promise((resolve, reject) => {
             try {
-                const startTime = Date.now();
+                startTime = Date.now();
 
-                let timer = setTimeout(() => {
-                    this.removeAllListeners('status');
+                timer = setTimeout(() => {
+                    this.off('status', checkStatus);
                     resolve(false);
                 }, 10000);
 
-                this.on('status', (status) => {
+                checkStatus = (status) => {
                     if (status[item][group1][group2][cmd] === state) {
                         clearTimeout(timer);
                         this.#log.info(`Command succeeded. Took ${Date.now() - startTime} ms`);
-                        this.removeAllListeners('status');
+                        this.off('status', checkStatus);
                         resolve(true);
-                    }
-                });
+                    } 
+                }              
+
+                this.on('status', checkStatus);
             }
             catch(error) {
-                this.removeAllListeners('status');
+                this.off('status', checkStatus);
                 reject(error);
             }
         });
