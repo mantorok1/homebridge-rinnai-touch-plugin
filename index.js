@@ -66,23 +66,7 @@ class RinnaiTouchPlatform {
 
             this.#repository = new RinnaiTouchRepository(this.log, this.settings);
             this.service = new RinnaiTouchService(this.log, this.#repository);
-/*
-            this.service.on('mode', (mode) => {
-                if (!this.service.hasMultiSetPoint) {
-                    this.configureZoneSwitches();
-                }
-                if (this.service.hasEvaporative) {
-                    this.configurePump();
-                }
-            });
 
-            if (this.settings.mqtt.formatNative) {
-                this.nativeClient = new NativeClient(this.log, this.settings.mqtt, this.#repository);
-            }
-            if (this.settings.mqtt.formatHomeAssistant) {
-                this.homeAssistantClient = new HomeAssistantClient(this.log, this.settings.mqtt, this.service);
-            }
-*/
             this.#started = true;
     
             if (api) {
@@ -167,15 +151,12 @@ class RinnaiTouchPlatform {
             if (this.service.hasHeater) this.log.info('Found Heater');
             if (this.service.hasCooler) this.log.info('Found Cooler');
             if (this.service.hasEvaporative) this.log.info('Found Evaporative Cooler');
-            if (this.service.hasMultiSetPoint) {
-                this.log.info('Found Zone Plus (Multi Set Point))');
-                let zones = this.service.controllers.map(z => this.service.getZoneName(z));
-                this.log.info(`Found Zone(s): ${zones.join()}`);
-            }
-            else if (this.service.zones.length > 0) {
-                let zones = this.service.zones.map(z => this.service.getZoneName(z));
-                this.log.info(`Found Zone(s): ${zones.join()}`);                
-            }
+            
+            let zones = this.service.zones.map(z => this.service.getZoneName(z));
+            this.log.info(`Found Zone(s): ${zones.join()}`);
+
+            let operation = this.service.hasMultiSetPoint ? 'Multi' : 'Single';
+            this.log.info(`Operation Mode: ${operation} Temperature Set Point`);
 
             this.configureThermostats();
             this.configureHeaterCoolers();

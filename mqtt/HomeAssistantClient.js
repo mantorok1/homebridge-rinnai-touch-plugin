@@ -240,7 +240,7 @@ class HomeAssistantClient extends ClientBase {
                 case 'switch/heat/set':
                 case 'switch/cool/set':
                 case 'switch/evap/set':
-                    this.setMode(topic, payload);
+                    this.setModeSwitch(topic, payload);
                     break;
                 case 'switch/fan/set':
                     this.setFanState(payload);
@@ -364,8 +364,8 @@ class HomeAssistantClient extends ClientBase {
         }
     }
 
-    async setMode(topic, payload) {
-        this.log.debug(this.constructor.name, 'setMode', topic, payload);
+    async setModeSwitch(topic, payload) {
+        this.log.debug(this.constructor.name, 'setModeSwitch', topic, payload);
 
         try {
             let mode = topic.split('/')[1].toUpperCase();

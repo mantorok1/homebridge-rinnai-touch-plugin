@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.4.4 (2020-06-21)
+
+* [FIX] Setting mode via MQTT /hvac/mode/set topic throws error
+
 ## 2.4.3 (2020-06-19)
 
 * [FIX] Publish delay after processing command

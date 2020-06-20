@@ -269,7 +269,7 @@ class RinnaiTouchService extends EventEmitter {
         this.#log.debug(this.constructor.name, 'updateZones', 'status');
 
         let zones = [];
-        for(let zone of ['U','A','B','C','D']) {
+        for(let zone of this.AllZones) {
             let installed = this.#stateService.getState('ZoneInstalled', status, zone);
             if (installed === 'Y') {
                 zones.push(zone);
