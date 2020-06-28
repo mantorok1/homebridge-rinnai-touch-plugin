@@ -17,6 +17,9 @@ class Settings {
                 ? false
                 : config.useHeaterCooler,
             showZoneSwitches: config.showZoneSwitches,
+            useZoneHeaterCooler: config.useZoneHeaterCooler === undefined
+                ? false
+                : config.useZoneHeaterCooler,
             showFan: config.showFan === undefined ? true : config.showFan,
             showAuto: config.showAuto,
             showAdvanceSwitches: config.showAdvanceSwitches,
@@ -32,8 +35,6 @@ class Settings {
             debug: config.debug === undefined ? false : config.debug,
 
             mqtt: this.getMqttSettings(config.mqtt),
-
-            mapOverrides: config.maps || {}
         };
     }
 
@@ -49,10 +50,10 @@ class Settings {
                 topicPrefix: config.topicPrefix,
                 formatNative: config.formatNative || false,
                 formatHomeAssistant: config.formatHomeAssistant || false,
-                publishCommandProcessed: config.publishCommandProcessed || false,
                 publishStatusChanged: config.publishStatusChanged || false,
                 publishIntervals: config.publishIntervals || false,
-                publishFrequency: config.publishFrequency === undefined ? 60 : config.publishFrequency
+                publishFrequency: config.publishFrequency === undefined ? 60 : config.publishFrequency,
+                subscribeTemperature: config.subscribeTemperature
             }
         }
 
@@ -80,6 +81,12 @@ class Settings {
         return this.#settings.showZoneSwitches === undefined
             ? true
             : this.#settings.showZoneSwitches;
+    }
+
+    get useZoneHeaterCooler() {
+        return this.#settings.useZoneHeaterCooler === undefined
+            ? false
+            : this.#settings.useZoneHeaterCooler;
     }
 
     get showFan() {
@@ -118,10 +125,6 @@ class Settings {
 
     get debug() {
         return this.#settings.debug;
-    }
-
-    get mapOverrides() {
-        return this.#settings.mapOverrides;
     }
 
     get mqtt() {

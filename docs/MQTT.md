@@ -5,6 +5,7 @@ The plugin is able to operate as an MQTT client. It publishes various topics con
 The following formats are supported:
 * Native Rinnai Touch
 * Home Assistant
+* Current Temperature Subscription
 
 ## Native Rinnai Touch
 
@@ -32,7 +33,6 @@ See the [Rinnai Touch Module WiFi API](https://hvac-api-docs.s3.us-east-2.amazon
 |`switch/manual/get`<br/>`switch/manual/set`|Gets or sets the manual state. Values can be "on" or "off". Used for systems with single controller|No|
 |`switch/manual/{zone}/get`<br/>`switch/manual/{zone}/set`|Gets or sets the manual state. Values can be "on" or "off". Used for systems with mutliple controllers. `{zone}` can be a, b, c or d|No|
 
-
 The `/get` topics are published and the `/set` topics are subscribed to. 
 
 The payload is either a single value or a JSON object containing values for each zone (if the payload supports zones). The JSON object has the following format:
@@ -40,6 +40,12 @@ The payload is either a single value or a JSON object containing values for each
     {U: "value1", A: "value2", B: "value3", ... }
 
 where U is the common zone (if applicable)
+
+## Current Temperature Subscription
+
+This allows the plugin to receive the current temperature from external sources such as 3rd party temperature sensors via MQTT. Each zone can have their own temperature topic subscription. This can be useful when the WiFi module doesn't include the temperature in its status information or only reports a single temeprature for all zones.
+
+NOTE: The Topic Prefix is not used for these topics.
 
 ## MQTT Settings
 
@@ -55,7 +61,14 @@ This section describes the configuration options for the plugin to operate as an
         "formatHomeAssistant": true,
         "publishStatusChanged": false,
         "publishIntervals": true,
-        "publishFrequency": 60
+        "publishFrequency": 60,
+        "subscribeTemperature": {
+            "U": "temp/u",
+            "A": "temp/a",
+            "B": "temp/b",
+            "C": "temp/c",
+            "D": "temp/d"
+        }
     },
 
 |Option|Description|Default Value (if not supplied)|
@@ -70,3 +83,14 @@ This section describes the configuration options for the plugin to operate as an
 |`publishStatusChanged`|Publish when status has changed|`false`|
 |`publishIntervals`|Publish at regular intervals|`false`|
 |`publishFrequency`|Publish frequency (secs)|`60`|
+|`subscribeTemperature`|Defines the topics the plugin subscribes to for receiving temeprature payloads||
+
+#### subscriptTemeprature settings:
+
+|Option|Description|
+|-|-|
+|`U`|Topic for Zone U's temperature (ie. Common zone)|
+|`A`|Topic for Zone A's temperature|
+|`B`|Topic for Zone B's temperature|
+|`C`|Topic for Zone C's temperature|
+|`D`|Topic for Zone D's temperature|

@@ -51,6 +51,7 @@ NOTE: Homebridge version 1.0.0 and onwards require an entry in the config.json f
 |port|Port to use for the WiFI module<br/>NOTE: leave blank for auto discovery|`27847`|
 |useHeaterCooler|Use Heater Cooler accessory instead of Thermostat|`false`|
 |showZoneSwitches|Show the Zone Switch accesories in the Home app|`true`|
+|useZoneHeaterCooler|Use Heater Cooler accessory instead of switches for each zone|`false`|
 |showFan|Show the fan accessory in the Home app|`true`|
 |showAuto|Show the `AUTO` option in the Thermostat menu|`true`|
 |showAdvanceSwitches|Show the Advance Period switch accessory in the Home app|`true`|

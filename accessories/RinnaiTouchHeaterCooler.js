@@ -3,6 +3,8 @@ const RinnaiTouchTemperature = require('./RinnaiTouchTemperature');
 let Accessory, Service, Characteristic, UUIDGen;
 
 class RinnaiTouchHeaterCooler extends RinnaiTouchTemperature {
+    #settingMode;
+
     constructor(platform) {
         super(platform);
         this.log.debug(this.constructor.name, undefined, 'platform');
@@ -115,7 +117,9 @@ class RinnaiTouchHeaterCooler extends RinnaiTouchTemperature {
     getActive() {
         this.log.debug(this.constructor.name, 'getActive');
 
-        let state = this.service.getState();
+        let state = this.service.hasMultiSetPoint || this.accessory.context.zone === 'U'
+            ? this.service.getState()
+            : this.service.getUserEnabled(this.accessory.context.zone);
 
         return state
             ? Characteristic.Active.ACTIVE
@@ -125,7 +129,9 @@ class RinnaiTouchHeaterCooler extends RinnaiTouchTemperature {
     getCurrentHeaterCoolerState() {
         this.log.debug(this.constructor.name, 'getCurrentHeaterCoolerState');
 
-        let state = this.service.getSystemActive(this.accessory.context.zone);
+        let state = this.accessory.context.zone === 'U'
+            ? this.service.getSystemActive(this.accessory.context.zone)
+            : this.service.getAutoEnabled(this.accessory.context.zone);
 
         if (!state) {
             return Characteristic.CurrentHeaterCoolerState.IDLE;
@@ -151,11 +157,22 @@ class RinnaiTouchHeaterCooler extends RinnaiTouchTemperature {
     getThresholdTemperature() {
         this.log.debug(this.constructor.name, 'getThresholdTemperature');
 
-        return this.service.getTargetTemperature(this.accessory.context.zone);
+        let zone = this.service.hasMultiSetPoint
+            ? this.accessory.context.zone
+            : 'U';
+
+        return this.service.getTargetTemperature(zone);
     }
 
     async setActive(value) {
         this.log.debug(this.constructor.name, 'setActive', value);
+
+        if (!this.service.hasMultiSetPoint && this.accessory.context.zone !== 'U') {
+            if (this.service.getState() || this.service.getFanState()) {
+                await this.service.setUserEnabled(value === Characteristic.Active.ACTIVE, this.accessory.context.zone);
+                return;
+            }
+        }
 
         if (this.service.getFanState() && value === Characteristic.Active.INACTIVE) {
             return;
@@ -166,6 +183,7 @@ class RinnaiTouchHeaterCooler extends RinnaiTouchTemperature {
             return;
         }
 
+        await this.setModeComplete();
         await this.service.setFanState(false);
         await this.service.setState(true);
     }
@@ -173,7 +191,7 @@ class RinnaiTouchHeaterCooler extends RinnaiTouchTemperature {
     async setTargetHeaterCoolerState(value) {
         this.log.debug(this.constructor.name, 'setTargetHeaterCoolerState', value);
 
-        await this.service.setState(true);
+        this.#settingMode = true;
 
         switch (value) {
             case Characteristic.TargetHeaterCoolerState.HEAT:
@@ -187,12 +205,16 @@ class RinnaiTouchHeaterCooler extends RinnaiTouchTemperature {
                 }
                 break;
             case Characteristic.TargetHeaterCoolerState.AUTO:
-                await this.service.setControlMode(this.service.ControlModes.SCHEDULE, this.accessory.context.zone);
-                await this.service.setScheduleOverride(this.service.ScheduleOverrideModes.NONE, this.accessory.context.zone);
+                if (this.service.getState()) {
+                    await this.service.setControlMode(this.service.ControlModes.SCHEDULE, this.accessory.context.zone);
+                    await this.service.setScheduleOverride(this.service.ScheduleOverrideModes.NONE, this.accessory.context.zone);    
+                }
                 // Force update values so mode switches back to correct mode
                 setTimeout(this.updateValues.bind(this), 1000);    
                 break;
         }
+
+        this.#settingMode = false;
     }
 
     async setThresholdTemperature(value) {
@@ -202,7 +224,31 @@ class RinnaiTouchHeaterCooler extends RinnaiTouchTemperature {
             return;
         }
 
-        await this.service.setTargetTemperature(value, this.accessory.context.zone);
+        let zone = this.service.hasMultiSetPoint
+            ? this.accessory.context.zone
+            : 'U';
+
+        await this.setModeComplete();
+        await this.service.setTargetTemperature(value, zone);
+    }
+
+    async setModeComplete() {
+        this.log.debug(this.constructor.name, 'setModeComplete');
+
+        if (!this.#settingMode) {
+            return;
+        }
+
+        const start = Date.now();
+        while (Date.now() - start < 10000) {
+            await new Promise((resolve) => {
+                setTimeout(resolve, 100);
+            });
+
+            if (!this.#settingMode) {
+                break;
+            }
+        }
     }
 
     updateValues() {

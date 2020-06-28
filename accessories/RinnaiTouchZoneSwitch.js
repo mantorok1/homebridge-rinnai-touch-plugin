@@ -38,6 +38,11 @@ class RinnaiTouchZoneSwitch extends RinnaiTouchSwitch {
             return;
         }
 
+        if (!this.service.getState() && !this.service.getFanState()) {
+            setTimeout(this.updateValues.bind(this), 1000);
+            return;
+        }
+
         await this.service.setUserEnabled(value, this.accessory.context.zone);
     }
 

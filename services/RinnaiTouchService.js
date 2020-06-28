@@ -8,7 +8,9 @@ class RinnaiTouchService extends EventEmitter {
     #states = {
         ZoneName: {U: 'Common'},
         Zones: [],
-        Controllers: []
+        Controllers: [],
+        CurrentTemperature: {},
+        CurrentTemperatureOverride: {}
     };
     #timestamp = 0;
     #previousMode;
@@ -149,7 +151,10 @@ class RinnaiTouchService extends EventEmitter {
 
     getCurrentTemperature(zone) {
         this.#log.debug(this.constructor.name, 'getCurrentTemperature', zone);
-        return this.#states.CurrentTemperature[zone];
+
+        return this.#states.CurrentTemperatureOverride[zone] === undefined
+            ? this.#states.CurrentTemperature[zone]
+            : this.#states.CurrentTemperatureOverride[zone];
     }
 
     getTargetTemperature(zone = 'U') {
@@ -238,7 +243,7 @@ class RinnaiTouchService extends EventEmitter {
             this.#previousMode = this.mode; 
         }
 
-        if (previousStates != JSON.stringify(this.#states)) {
+        if (previousStates !== JSON.stringify(this.#states)) {
             this.emit('updated');
         }
     }
@@ -316,15 +321,12 @@ class RinnaiTouchService extends EventEmitter {
     updateCurrentTemperature(status) {
         this.#log.debug(this.constructor.name, 'updateCurrentTemperature', 'status');
 
-        let states = {};
         for(let zone of this.AllZones) {
             let state = this.#stateService.getState('CurrentTemp', status, zone);
             if (state !== '999') {
-                states[zone] = parseFloat(state) / 10.0;
+                this.#states.CurrentTemperature[zone] = parseFloat(state) / 10.0;
             }
         }
-
-        this.#states.CurrentTemperature = states;
     }
 
     updateTargetTemperature(status) {
@@ -515,6 +517,15 @@ class RinnaiTouchService extends EventEmitter {
         }
         catch(error) {
             this.#log.error(error);
+        }
+    }
+
+    setCurrentTemperatureOverride(value, zone) {
+        this.#log.debug(this.constructor.name, 'setCurrentTemperatureOverride', value, zone);
+
+        if (this.#states.CurrentTemperatureOverride[zone] !== value) {
+            this.#states.CurrentTemperatureOverride[zone] = value;
+            this.emit('updated');
         }
     }
 

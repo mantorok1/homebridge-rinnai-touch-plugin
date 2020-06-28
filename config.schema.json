@@ -27,50 +27,56 @@
         "maximum": 65535
       },
       "useHeaterCooler" : {
-        "title": " Use 'Heater Cooler' accessory",
+        "title": "Use 'Heater Cooler' accessory",
         "type": "boolean",
         "default": false,
         "required": false          
       },
       "showZoneSwitches": {
-        "title": " Show 'Zone' switch accessories (if applicable)",
+        "title": "Show 'Zone' switch accessories (if applicable)",
         "type": "boolean",
         "default": true,
         "required": false
       },
+      "useZoneHeaterCooler": {
+        "title": "Use 'Heater Cooler' accessory as zone switches",
+        "type": "boolean",
+        "default": false,
+        "required": false
+      },
       "showFan": {
-        "title": " Show 'Fan' accessory",
+        "title": "Show 'Fan' accessory",
         "type": "boolean",
         "default": true,
         "required": false
       },
       "showAuto": {
-        "title": " Show 'AUTO' option in Thermostat/Heater Cooler",
+        "title": "Show 'AUTO' option in Thermostat/Heater Cooler",
         "type": "boolean",
         "default": true,
         "required": false
       },
       "showAdvanceSwitches": {
-        "title": " Show 'Advance Period' switch accessory(ies)",
+        "title": "Show 'Advance Period' switch accessory(ies)",
         "type": "boolean",
         "default": true,
         "required": false
       },
       "showManualSwitches": {
-        "title": " Show 'Manual' switch accessory(ies)",
+        "title": "Show 'Manual' switch accessory(ies)",
         "type": "boolean",
         "default": true,
         "required": false
       },
       "closeConnectionDelay": {
-        "title": " Close Connection Delay (ms)",
+        "title": "Close Connection Delay (ms)",
         "type": "number",
         "placeholder": 1100,
         "minimum": 0,
         "maximum": 10000
       },
       "connectionTimeout": {
-        "title": " Connection Timeout (ms)",
+        "title": "Connection Timeout (ms)",
         "description": "(-1 = never close, 0 = close immediately)",
         "type": "number",
         "placeholder": 5000,
@@ -78,13 +84,13 @@
         "maximum": 300000
       },
       "clearCache": {
-        "title": " Clear plugin's accessory cache",
+        "title": "Clear plugin's accessory cache",
         "type": "boolean",
         "default": false,
         "required": false
       },
       "debug": {
-        "title": " Display debug messages in homebridge log",
+        "title": "Display debug messages in homebridge log",
         "type": "boolean",
         "default": false,
         "required": false
@@ -138,7 +144,32 @@
             "placeholder": 60,
             "minimum": 1,
             "maximum": 86400
-           }
+          },
+          "subscribeTemperature": {
+            "type": "object",
+            "properties": {
+              "U": {
+                "type": "string",
+                "title": "Zone U (Common) Topic"
+              },
+              "A": {
+                "type": "string",
+                "title": "Zone A Topic"
+              },
+              "B": {
+                "type": "string",
+                "title": "Zone B Topic"
+              },
+              "C": {
+                "type": "string",
+                "title": "Zone C Topic"
+              },
+              "D": {
+                "type": "string",
+                "title": "Zone D Topic"
+              }
+            }
+          }
         }
       }
     }
@@ -158,6 +189,7 @@
       "items": [
         "useHeaterCooler",
         "showZoneSwitches",
+        "useZoneHeaterCooler",
         "showFan",
         "showAuto",
         "showAdvanceSwitches",
@@ -204,6 +236,19 @@
             "mqtt.publishStatusChanged",
             "mqtt.publishIntervals",
             "mqtt.publishFrequency"
+          ]
+        },
+        {
+          "type": "section",
+          "title": "Current Temperature Subscription",
+          "expandable": true,
+          "expanded": false,
+          "items": [
+            "mqtt.subscribeTemperature.U",
+            "mqtt.subscribeTemperature.A",
+            "mqtt.subscribeTemperature.B",
+            "mqtt.subscribeTemperature.C",
+            "mqtt.subscribeTemperature.D"
           ]
         }
       ]

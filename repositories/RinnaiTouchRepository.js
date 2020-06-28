@@ -175,6 +175,10 @@ class RinnaiTouchRepository extends EventEmitter {
                 }, 10000);
 
                 checkStatus = (status) => {
+                    if (status[item][group1] === undefined || status[item][group1][group2] === undefined) {
+                        return;
+                    }
+
                     if (status[item][group1][group2][cmd] === state) {
                         clearTimeout(timer);
                         this.#log.info(`Command succeeded. Took ${Date.now() - startTime} ms`);

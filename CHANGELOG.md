@@ -2,9 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.5.0 (2020-06-28)
+
+* Allow 'Heater Cooler' accessory to be used as zone switches
+* Add Current Temperature MQTT subscriptions for zones.
+* [FIX] Fan does not switch off when set via MQTT hvac/mode/set topic
+* [FIX] Handle case where status messages may be concatenated
+* [FIX] Turning Zone Switch on while Thermostat & Fan are off throws error
+
 ## 2.4.4 (2020-06-21)
 
-* [FIX] Setting mode via MQTT /hvac/mode/set topic throws error
+* [FIX] Setting mode via MQTT hvac/mode/set topic throws error
 
 ## 2.4.3 (2020-06-19)
 

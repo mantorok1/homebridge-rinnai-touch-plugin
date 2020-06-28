@@ -23,6 +23,10 @@ class ClientBase {
         this.init();
     }
 
+    get client() {
+        return this.#client;
+    }
+
     async init() {
         try {
             this.log.debug('ClientBase', 'init');

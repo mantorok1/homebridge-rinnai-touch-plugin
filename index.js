@@ -13,6 +13,7 @@ const RinnaiTouchManualSwitch = require('./accessories/RinnaiTouchManualSwitch')
 
 const NativeClient = require('./mqtt/NativeClient');
 const HomeAssistantClient = require('./mqtt/HomeAssistantClient');
+const TemperatureClient = require('./mqtt/TemperatureClient');
 
 let Accessory, Service, Characteristic, UUIDGen;
 
@@ -24,6 +25,7 @@ let Accessory, Service, Characteristic, UUIDGen;
         "port": 27847,
         "useHeaterCooler": false,
         "showZoneSwitches": true,
+        "useZoneHeaterCooler": true,
         "showFan": true,
         "showAuto": true,
         "showAdvanceSwitches": true,
@@ -169,6 +171,7 @@ class RinnaiTouchPlatform {
             this.service.on('mode', (mode) => {
                 if (!this.service.hasMultiSetPoint) {
                     this.configureZoneSwitches();
+                    this.configureHeaterCoolers();
                 }
                 if (this.service.hasEvaporative) {
                     this.configurePump();
@@ -180,6 +183,9 @@ class RinnaiTouchPlatform {
             }
             if (this.settings.mqtt.formatHomeAssistant) {
                 this.homeAssistantClient = new HomeAssistantClient(this.log, this.settings.mqtt, this.service);
+            }
+            if (this.settings.mqtt.subscribeTemperature) {
+                this.temperatureClient = new TemperatureClient(this.log, this.settings.mqtt, this.service);
             }
         }
         catch(error) {
@@ -206,8 +212,13 @@ class RinnaiTouchPlatform {
         this.log.debug(this.constructor.name, 'configureHeaterCoolers');
 
         for(let zone of this.service.AllZones) {
-            if (this.settings.useHeaterCooler && this.service.controllers.includes(zone)) {
-                let name = this.service.hasMultiSetPoint
+            let addHeaterCooler =
+                (this.settings.useHeaterCooler && this.service.controllers.includes(zone)) ||
+                (!this.service.hasMultiSetPoint && zone !== 'U' && this.settings.showZoneSwitches &&
+                 this.settings.useZoneHeaterCooler && this.service.zones.includes(zone));
+
+            if (addHeaterCooler) {
+                let name = zone !== 'U'
                     ? this.service.getZoneName(zone)
                     : this.settings.name;
                 this.addAccessory(RinnaiTouchHeaterCooler, name, zone);
@@ -221,7 +232,7 @@ class RinnaiTouchPlatform {
         this.log.debug(this.constructor.name, 'configureZoneSwitches');
 
         for(let zone of ['A','B','C','D']) {
-            if (this.settings.showZoneSwitches && this.service.zones.includes(zone)) {
+            if (!this.service.hasMultiSetPoint && this.settings.showZoneSwitches && !this.settings.useZoneHeaterCooler && this.service.zones.includes(zone)) {
                 this.addAccessory(RinnaiTouchZoneSwitch, this.service.getZoneName(zone), zone);
             } else {
                 this.removeAccessory(RinnaiTouchZoneSwitch, zone);

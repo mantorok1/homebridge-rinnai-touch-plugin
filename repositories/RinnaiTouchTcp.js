@@ -38,7 +38,8 @@ class RinnaiTouchTcp extends EventEmitter {
                 self.#socket.on('data', (data) => {
                     data = data.toString();
                     if (data.substr(0, 1) === 'N') {
-                        self.emit('data', data);
+                        let from = data.lastIndexOf('[') - 7;
+                        self.emit('data', data.substr(from));
                         resolve();
                     }
                 });

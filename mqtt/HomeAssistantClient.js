@@ -294,6 +294,7 @@ class HomeAssistantClient extends ClientBase {
                 break;
             case 'off':
                 await this.#service.setState(false);
+                await this.#service.setFanState(false);
                 break;
             case 'heat':
                 await this.#service.setFanState(false);
