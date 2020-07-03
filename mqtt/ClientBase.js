@@ -45,10 +45,22 @@ class ClientBase {
                     this.process(topic, payload.toString());
                 }
             });
+
+            if (this.settings.publishIntervals || this.settings.publishStatusChanged) {
+                await this.initialPublish();
+            }
+
+            this.setPublications();
         }
         catch(error) {
             this.log.error(error);
         }
+    }
+
+    async initialPublish() {
+    }
+
+    setPublications() {
     }
 
     async subscribe(topic) {

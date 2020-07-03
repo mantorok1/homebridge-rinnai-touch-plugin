@@ -8,8 +8,6 @@ class NativeClient extends ClientBase {
         this.log.debug(this.constructor.name, undefined, 'log', 'settings', 'repository');
 
         this.#repository = repository;
-
-        this.setPublications();
     }
 
     get subscriptionTopics() {
@@ -21,27 +19,26 @@ class NativeClient extends ClientBase {
 
         // Publish at intervals
         if (this.settings.publishIntervals) {
-            setInterval(this.publishStatus.bind(this), this.settings.publishFrequency * 1000);
+            setInterval(async () => {
+                this.log.info('MQTT Publish Event: Scheduled Interval (native)');
+                let status = await this.#repository.execute({type: 'get'});
+                this.publish('native/get', JSON.stringify(status)); 
+            }, this.settings.publishFrequency * 1000);
         }
 
         // Publish on status change
         if (this.settings.publishStatusChanged) {
             this.#repository.on('status', (status) => {
-                this.log.info('MQTT Publish Event: Status Changed');
+                this.log.info('MQTT Publish Event: Status Changed (native)');
                 this.publish('native/get', status);
             });
         }
-
-        // Initial publication
-        if (this.settings.publishIntervals || this.settings.publishStatusChanged) {
-            setTimeout(this.publishStatus.bind(this), 1000);
-        }
     }
 
-    async publishStatus() {
-        this.log.debug(this.constructor.name, 'publishStatus');
-        this.log.info('MQTT Publish Event: Scheduled Interval');
+    async initialPublish() {
+        this.log.debug(this.constructor.name, 'initialPublish');
 
+        this.log.info('MQTT Publish Event: Initial (native)');
         let status = await this.#repository.execute({type: 'get'});
         this.publish('native/get', JSON.stringify(status)); 
     }

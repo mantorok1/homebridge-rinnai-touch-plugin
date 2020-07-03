@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.5.2 (2020-07-03)
+
+* [FIX] Initial MQTT publication may occur before connection to broker established
+
 ## 2.5.1 (2020-07-03)
 
 * Simplify accessory settings
