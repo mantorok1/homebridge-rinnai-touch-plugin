@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.5.1 (2020-07-03)
+
+* Simplify accessory settings
+* Remove `AUTO` option from Zone 'Heater Cooler' accessory
+* Additional INFO logging to show what caused the TCP connection to open
+
 ## 2.5.0 (2020-06-28)
 
 * Allow 'Heater Cooler' accessory to be used as zone switches

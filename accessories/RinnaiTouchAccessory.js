@@ -59,8 +59,9 @@ class RinnaiTouchAccessory {
         });
     }
 
-    async getCharacteristicValue(getValue, callback) {
+    async getCharacteristicValue(getValue, characteristic, callback) {
         this.log.debug('RinnaiTouchAccessory', 'getCharacteristicValue', 'getValue', 'callback');
+        this.log.info(`${this.accessory.displayName}: Getting characteristic '${characteristic}'`);
         try {
             await this.service.updateStates();
             let value = getValue();
@@ -73,8 +74,9 @@ class RinnaiTouchAccessory {
         }
     }
 
-    async setCharacteristicValue(setValue, value, callback) {
+    async setCharacteristicValue(setValue, characteristic, value, callback) {
         this.log.debug('RinnaiTouchAccessory', 'setCharacteristic', 'setValue', value, 'callback');
+        this.log.info(`${this.accessory.displayName}: Setting characteristic '${characteristic}' to '${value}'`);
         try {
             await setValue(value);
  
@@ -86,7 +88,7 @@ class RinnaiTouchAccessory {
             this.log.error(error);
             callback(error);
         }
-    }    
+    }
 }
 
 module.exports = RinnaiTouchAccessory;

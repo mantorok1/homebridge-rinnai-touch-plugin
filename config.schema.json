@@ -26,23 +26,28 @@
         "minimum": 0,
         "maximum": 65535
       },
-      "useHeaterCooler" : {
-        "title": "Use 'Heater Cooler' accessory",
-        "type": "boolean",
-        "default": false,
-        "required": false          
+      "controllerType": {
+        "title": "Controller Accessory Type",
+        "description": "",
+        "type": "string",
+        "required": true,
+        "default": "T",
+        "oneOf":  [
+          { "title": "Thermostat", "enum": [ "T" ] },
+          { "title": "Heater Cooler", "enum": [ "H" ] }
+        ]
       },
-      "showZoneSwitches": {
-        "title": "Show 'Zone' switch accessories (if applicable)",
-        "type": "boolean",
-        "default": true,
-        "required": false
-      },
-      "useZoneHeaterCooler": {
-        "title": "Use 'Heater Cooler' accessory as zone switches",
-        "type": "boolean",
-        "default": false,
-        "required": false
+      "zoneType": {
+        "title": "Zone Accessory Type",
+        "description": "",
+        "type": "string",
+        "required": true,
+        "default": "S",
+        "oneOf":  [
+          { "title": "None", "enum": [ "N" ] },
+          { "title": "Switch", "enum": [ "S" ] },
+          { "title": "Heater Cooler", "enum": [ "H" ] }
+        ]
       },
       "showFan": {
         "title": "Show 'Fan' accessory",
@@ -187,9 +192,11 @@
       "expandable": true,
       "expanded": false,
       "items": [
-        "useHeaterCooler",
-        "showZoneSwitches",
-        "useZoneHeaterCooler",
+        {
+          "type": "flex",
+          "flex-flow": "row wrap",
+          "items": [ "controllerType", "zoneType" ]          
+        },
         "showFan",
         "showAuto",
         "showAdvanceSwitches",

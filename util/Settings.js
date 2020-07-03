@@ -13,13 +13,12 @@ class Settings {
             address: config.address,
             port: config.port,
 
-            useHeaterCooler: config.useHeaterCooler === undefined
-                ? false
-                : config.useHeaterCooler,
-            showZoneSwitches: config.showZoneSwitches,
-            useZoneHeaterCooler: config.useZoneHeaterCooler === undefined
-                ? false
-                : config.useZoneHeaterCooler,
+            controllerType: config.controllerType === undefined
+                ? 'T'
+                : config.controllerType.substr(0, 1).toUpperCase(),
+            zoneType: config.zoneType === undefined
+                ? 'S'
+                : config.zoneType.substr(0, 1).toUpperCase(),
             showFan: config.showFan === undefined ? true : config.showFan,
             showAuto: config.showAuto,
             showAdvanceSwitches: config.showAdvanceSwitches,
@@ -73,20 +72,16 @@ class Settings {
         return this.#settings.port;
     }
 
-    get useHeaterCooler() {
-        return this.#settings.useHeaterCooler;
+    get controllerType() {
+        return ['T', 'H'].includes(this.#settings.controllerType)
+            ? this.#settings.controllerType
+            : 'T';
     }
 
-    get showZoneSwitches() {
-        return this.#settings.showZoneSwitches === undefined
-            ? true
-            : this.#settings.showZoneSwitches;
-    }
-
-    get useZoneHeaterCooler() {
-        return this.#settings.useZoneHeaterCooler === undefined
-            ? false
-            : this.#settings.useZoneHeaterCooler;
+    get zoneType() {
+        return ['N', 'S', 'H'].includes(this.#settings.zoneType)
+            ? this.#settings.zoneType
+            : 'S';
     }
 
     get showFan() {

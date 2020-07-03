@@ -27,6 +27,7 @@ class NativeClient extends ClientBase {
         // Publish on status change
         if (this.settings.publishStatusChanged) {
             this.#repository.on('status', (status) => {
+                this.log.info('MQTT Publish Event: Status Changed');
                 this.publish('native/get', status);
             });
         }
@@ -39,6 +40,7 @@ class NativeClient extends ClientBase {
 
     async publishStatus() {
         this.log.debug(this.constructor.name, 'publishStatus');
+        this.log.info('MQTT Publish Event: Scheduled Interval');
 
         let status = await this.#repository.execute({type: 'get'});
         this.publish('native/get', JSON.stringify(status)); 

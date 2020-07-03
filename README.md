@@ -1,11 +1,11 @@
 # Homebridge Plugin for the Rinnai Touch WiFi Module
-This Homebridge Plugin allows you to control a Brivis HVAC system via a Rinnai Touch WiFi Module. It supports the following configurations:
-* Single controller with 1 or more zones
-* Multiple controllers, one per zone
+This Homebridge Plugin allows you to control a Brivis HVAC system via a Rinnai Touch WiFi Module. It supports the following operation modes:
+* Single Temperature Set Point (ie. one controller with 1 to 5 zones including the Common zone)
+* Multi Temperature Set Point (ie. one controller per zone, up to 4)
 
 Functions available:
-* Displaying the current state of the device
-* Switching the device to Off, Heating or Cooling modes
+* Displaying the current state (eg. idle, heating, cooling)
+* Switching to Off, Heating or Cooling modes
 * Displaying the current temperature (depends on controller model)
 * Setting the desired temperature
 * Switching zones On and Off
@@ -22,7 +22,7 @@ This plugin will add one or more accessories to the Home app depending on your R
 |Accessory|Description|
 |-|-|
 |Thermostat / Heater&nbsp;Cooler|Displays the current temperature, units (Celsius or Fahrenheit) and mode of the Brivis HVAC system. It allows you to set the desired temperature and change the mode. Modes are:<ul><li>`OFF` - System is off</li><li>`HEAT` - System is in heating mode</li><li>`COOL` - System is in cooling mode</li><li>`AUTO` - Returns system into Auto mode and the current period of the programme schedule (this option can be hidden with the `showAuto` config option). It will return to the `HEAT` or `COOL` mode when complete</li></ul>NOTES:<ul><li>One accessory will be added for each controller</li><li>Temperature units in the accessory do not determine which unit to use when displaying temperatures in the Home app. This is controlled by your phone's settings</li></ul>|
-|Zone Switch|Shows if the zone is currently On or Off and allows you to change it. Zone Switches will be added if you have 1 controller with more than 1 zone|
+|Zone Switch|Shows if the zone is currently On or Off and allows you to change it. Zone Switches are shown if the operation mode is 'Single Temperature Set Point' and at least one zone is enabled (excluding the Common zone)<br/>NOTE: The 'Heater Cooler' accessory can be used as a zone switch|
 |Fan|Displays the current state and speed setting of the circulation fan. Allows you to turn it Off or set the rotation speed<br/>NOTE: The fan can only be used when the Thermostat is in the `OFF` mode or `COOL` mode for Evaporative Cooling|
 |Advance Period Switch|Shows if the Period of the Programme Schedule has been advanced and allows you to change it|
 |Manual Switch|Shows if the Manual mode is On or Off and allows you to change it|
@@ -37,7 +37,7 @@ To install or upgrade to the latest version of this plugin:
 
 ## Configuration
 
-This is a platform plugin that will register accessories and their services with the Bridge provided by homebridge. It supports up to 4 controllers and 4 zones. The plugin will attempt to discover your Rinnai Touch accessories automatically thus requiring zero configuration to the config.json file.
+This is a platform plugin that will register accessories and their services with the Bridge provided by homebridge. The plugin will attempt to discover your Rinnai Touch accessories automatically thus requiring zero configuration to the config.json file.
 
 If you find the auto config is not correct for your system or some defaults are not to your liking there are some overrides you can define in the config.json file.
 
@@ -45,22 +45,21 @@ NOTE: Homebridge version 1.0.0 and onwards require an entry in the config.json f
 
 |Option|Description|Default Value (if not supplied)|
 |-|-|-|
-|platform|Must be `"RinnaiTouchPlatform"`||
-|name|The name of the platform|`"Rinnai Touch"`|
-|address|IP Address of the WiFi module<br/>NOTE: leave blank for auto discovery||
-|port|Port to use for the WiFI module<br/>NOTE: leave blank for auto discovery|`27847`|
-|useHeaterCooler|Use Heater Cooler accessory instead of Thermostat|`false`|
-|showZoneSwitches|Show the Zone Switch accesories in the Home app|`true`|
-|useZoneHeaterCooler|Use Heater Cooler accessory instead of switches for each zone|`false`|
-|showFan|Show the fan accessory in the Home app|`true`|
-|showAuto|Show the `AUTO` option in the Thermostat menu|`true`|
-|showAdvanceSwitches|Show the Advance Period switch accessory in the Home app|`true`|
-|showManualSwitches|Show the Manual switch accessory in the Home app|`true`|
-|closeConnectionDelay|The time (ms) to wait for the TCP connection to fully close. Increasing this may reduce `Connection Refused` errors from occuring|`1100`|
-|connectionTimeout|The time (ms) to wait to close the TCP connection after the last request. Set to `-1` to keep the connection open indefinitely, or `0` to close immediately|`5000`|
-|clearCache|Clear all the plugin's cached accessories from homebridge to force full discovery of accessories on restart|`false`|
-|debug|Output debug information to the Homebridge log|`false`|
-|mqtt|See [MQTT.md](docs/MQTT.md) for details|`{}`|
+|`platform`|Must be `"RinnaiTouchPlatform"`||
+|`name`|The name of the platform|`"Rinnai Touch"`|
+|`address`|IP Address of the WiFi module<br/>NOTE: leave blank for auto discovery||
+|`port`|Port to use for the WiFI module<br/>NOTE: leave blank for auto discovery|`27847`|
+|`controllerType`|The type of accessory to use for the controller(s). Options are:<br/>`T` for Thermostat<br/>`H` for Heater Cooler|`T`|
+|`zoneType`|The type of accessory to use for controlling zones (only applicable for Single Temperature Set Point). Options are:<br>`N` for None (ie. don't show any accessory for zones<br/>`S` for Switch<br/>`H` for Heater Cooler|`S`|
+|`showFan`|Show the fan accessory in the Home app|`true`|
+|`showAuto`|Show the `AUTO` option in the Thermostat menu|`true`|
+|`showAdvanceSwitches`|Show the Advance Period switch accessory in the Home app|`true`|
+|`showManualSwitches`|Show the Manual switch accessory in the Home app|`true`|
+|`closeConnectionDelay`|The time (ms) to wait for the TCP connection to fully close. Increasing this may reduce `Connection Refused` errors from occuring|`1100`|
+|`connectionTimeout`|The time (ms) to wait to close the TCP connection after the last request. Set to `-1` to keep the connection open indefinitely, or `0` to close immediately|`5000`|
+|`clearCache`|Clear all the plugin's cached accessories from homebridge to force full discovery of accessories on restart|`false`|
+|`debug`|Output debug information to the Homebridge log|`false`|
+|`mqtt`|See [MQTT.md](docs/MQTT.md) for details|`{}`|
 
 
 #### Example: Bare mimimum (requried for Homebridge 1.0.0 onwards)
@@ -78,7 +77,7 @@ NOTE: Homebridge version 1.0.0 and onwards require an entry in the config.json f
         {
             "platform": "RinnaiTouchPlatform",
             "name": "Rinnai Touch",
-            "useHeaterCooler": true,
+            "controllerType": "H",
             "debug": true
         }
     ],
@@ -107,4 +106,5 @@ See [Change Log](CHANGELOG.md).
 * Due to the lag between sending a command to the module and it correctly reflecting that command in it's status there may be a short delay of a few seconds before the Home app shows the correct values. eg. When switching from HEAT to COOL mode some details such as the desired temperature will take a few seconds before the current value is shown.
 * If the number of zones is different between the `Heat` and `Cool` modes the Zone Switches are dynamically added or removed as necessary. The downside of this is that you will loose any changes you made to the accessory (eg. name).
 * If the WiFi module does not supply a current temperature then the temperature will display as zero in the Thermostat/Heater Cooler accessory. I would have prefered it showed as blank but couldn't find a way to do it. This appears to be a limitation of the service within Homebridge.
-* The WiFi module will close the TCP connection after 5 minutes of inactivity. If the connection timeout is set to never (ie. -1) the plugin will attempt to automatically reconnect.
+* The WiFi module will close the TCP connection after 5 minutes of inactivity. If the connection timeout is set to never (ie. `-1`) the plugin will attempt to automatically reconnect.
+* The 'Heater Cooler' accessory is not currently supported by Home Assistant. See https://github.com/home-assistant/core/issues/30384

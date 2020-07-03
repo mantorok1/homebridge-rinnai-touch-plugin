@@ -39,6 +39,7 @@ class HomeAssistantClient extends ClientBase {
         // Publish at intervals
         if (this.settings.publishIntervals) {
             setInterval(async () => {
+                this.log.info('MQTT Publish Event: Scheduled Interval');
                 await this.#service.updateStates();
                 if (!this.settings.publishStatusChanged) {
                     this.publishChanges();
@@ -49,6 +50,7 @@ class HomeAssistantClient extends ClientBase {
         // Publish on status changed
         if (this.settings.publishStatusChanged) {
             this.#service.on('updated', () => {
+                this.log.info('MQTT Publish Event: Status Changed')
                 this.publishChanges();
             });
         }

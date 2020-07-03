@@ -75,7 +75,7 @@ class RinnaiTouchHeaterCooler extends RinnaiTouchTemperature {
         this.log.debug(this.constructor.name, 'getValidTargetHeaterCoolerStates');
 
         let validStates = [];
-        if (this.settings.showAuto) {
+        if (this.settings.showAuto && (this.service.hasMultiSetPoint || this.accessory.context.zone === 'U')) {
             validStates.push(Characteristic.TargetHeaterCoolerState.AUTO);
         }
         if (this.service.hasHeater) {
@@ -95,23 +95,23 @@ class RinnaiTouchHeaterCooler extends RinnaiTouchTemperature {
         super.setEventHandlers(service);
 
         service.getCharacteristic(Characteristic.Active)
-            .on('get', this.getCharacteristicValue.bind(this, this.getActive.bind(this)))
-            .on('set', this.setCharacteristicValue.bind(this, this.setActive.bind(this)));
+            .on('get', this.getCharacteristicValue.bind(this, this.getActive.bind(this), 'Active'))
+            .on('set', this.setCharacteristicValue.bind(this, this.setActive.bind(this), 'Active'));
 
         service.getCharacteristic(Characteristic.CurrentHeaterCoolerState)
-            .on('get', this.getCharacteristicValue.bind(this, this.getCurrentHeaterCoolerState.bind(this)));
+            .on('get', this.getCharacteristicValue.bind(this, this.getCurrentHeaterCoolerState.bind(this), 'CurrentHeaterCoolerState'));
 
         service.getCharacteristic(Characteristic.TargetHeaterCoolerState)
-            .on('get', this.getCharacteristicValue.bind(this, this.getTargetHeaterCoolerState.bind(this)))
-            .on('set', this.setCharacteristicValue.bind(this, this.setTargetHeaterCoolerState.bind(this)));
+            .on('get', this.getCharacteristicValue.bind(this, this.getTargetHeaterCoolerState.bind(this), 'TargetHeaterCoolerState'))
+            .on('set', this.setCharacteristicValue.bind(this, this.setTargetHeaterCoolerState.bind(this), 'TargetHeaterCoolerState'));
 
         service.getCharacteristic(Characteristic.HeatingThresholdTemperature)
-            .on('get', this.getCharacteristicValue.bind(this, this.getThresholdTemperature.bind(this)))
-            .on('set', this.setCharacteristicValue.bind(this, this.setThresholdTemperature.bind(this)));
+            .on('get', this.getCharacteristicValue.bind(this, this.getThresholdTemperature.bind(this), 'HeatingThresholdTemperature'))
+            .on('set', this.setCharacteristicValue.bind(this, this.setThresholdTemperature.bind(this), 'HeatingThresholdTemperature'));
 
         service.getCharacteristic(Characteristic.CoolingThresholdTemperature)
-            .on('get', this.getCharacteristicValue.bind(this, this.getThresholdTemperature.bind(this)))
-            .on('set', this.setCharacteristicValue.bind(this, this.setThresholdTemperature.bind(this)));
+            .on('get', this.getCharacteristicValue.bind(this, this.getThresholdTemperature.bind(this), 'CoolingThresholdTemperature'))
+            .on('set', this.setCharacteristicValue.bind(this, this.setThresholdTemperature.bind(this), 'CoolingThresholdTemperature'));
     }
 
     getActive() {

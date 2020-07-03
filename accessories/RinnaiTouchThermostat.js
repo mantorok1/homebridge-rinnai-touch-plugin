@@ -86,15 +86,15 @@ class RinnaiTouchThermostat extends RinnaiTouchTemperature {
         super.setEventHandlers(service);
 
         service.getCharacteristic(Characteristic.CurrentHeatingCoolingState)
-            .on('get', this.getCharacteristicValue.bind(this, this.getCurrentHeatingCoolingState.bind(this)));
+            .on('get', this.getCharacteristicValue.bind(this, this.getCurrentHeatingCoolingState.bind(this), 'CurrentHeatingCoolingState'));
 
         service.getCharacteristic(Characteristic.TargetHeatingCoolingState)
-            .on('get', this.getCharacteristicValue.bind(this, this.getTargetHeatingCoolingState.bind(this)))
-            .on('set', this.setCharacteristicValue.bind(this, this.setTargetHeatingCoolingState.bind(this)));
+            .on('get', this.getCharacteristicValue.bind(this, this.getTargetHeatingCoolingState.bind(this), 'TargetHeatingCoolingState'))
+            .on('set', this.setCharacteristicValue.bind(this, this.setTargetHeatingCoolingState.bind(this), 'TargetHeatingCoolingState'));
 
         service.getCharacteristic(Characteristic.TargetTemperature)
-            .on('get', this.getCharacteristicValue.bind(this, this.getTargetTemperature.bind(this)))
-            .on('set', this.setCharacteristicValue.bind(this, this.setTargetTemperature.bind(this)));
+            .on('get', this.getCharacteristicValue.bind(this, this.getTargetTemperature.bind(this), 'TargetTemperature'))
+            .on('set', this.setCharacteristicValue.bind(this, this.setTargetTemperature.bind(this), 'TargetTemperature'));
     }
 
     getCurrentHeatingCoolingState() {

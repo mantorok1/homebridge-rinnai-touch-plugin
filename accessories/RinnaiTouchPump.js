@@ -38,12 +38,12 @@ class RinnaiTouchPump extends RinnaiTouchAccessory {
         let service = this.accessory.getService(Service.Valve);
         service
             .getCharacteristic(Characteristic.Active)
-            .on('get', this.getCharacteristicValue.bind(this, this.getPumpActive.bind(this)))
-            .on('set', this.setCharacteristicValue.bind(this, this.setPumpActive.bind(this)));
+            .on('get', this.getCharacteristicValue.bind(this, this.getPumpActive.bind(this), 'Active'))
+            .on('set', this.setCharacteristicValue.bind(this, this.setPumpActive.bind(this), 'Active'));
 
         service
             .getCharacteristic(Characteristic.InUse)
-            .on('get', this.getCharacteristicValue.bind(this, this.getPumpInUse.bind(this)));
+            .on('get', this.getCharacteristicValue.bind(this, this.getPumpInUse.bind(this), 'InUse'));
     }
 
     getPumpActive() {

@@ -21,8 +21,8 @@ class RinnaiTouchZoneSwitch extends RinnaiTouchSwitch {
 
         this.accessory.getService(Service.Switch)
             .getCharacteristic(Characteristic.On)
-            .on('get', this.getCharacteristicValue.bind(this, this.getZoneSwitchOn.bind(this)))
-            .on('set', this.setCharacteristicValue.bind(this, this.setZoneSwitchOn.bind(this)));
+            .on('get', this.getCharacteristicValue.bind(this, this.getZoneSwitchOn.bind(this), 'On'))
+            .on('set', this.setCharacteristicValue.bind(this, this.setZoneSwitchOn.bind(this), 'On'));
     }
 
     getZoneSwitchOn() {

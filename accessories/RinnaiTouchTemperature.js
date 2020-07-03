@@ -30,10 +30,10 @@ class RinnaiTouchTemperature extends RinnaiTouchAccessory {
         super.setEventHandlers();
 
         service.getCharacteristic(Characteristic.CurrentTemperature)
-            .on('get', this.getCharacteristicValue.bind(this, this.getCurrentTemperature.bind(this)));
+            .on('get', this.getCharacteristicValue.bind(this, this.getCurrentTemperature.bind(this), 'CurrentTemperature'));
 
         service.getCharacteristic(Characteristic.TemperatureDisplayUnits)
-            .on('get', this.getCharacteristicValue.bind(this, this.getTemperatureUnits.bind(this)));
+            .on('get', this.getCharacteristicValue.bind(this, this.getTemperatureUnits.bind(this), 'TemperatureDisplayUnits'));
     }
 
     getCurrentTemperature() {

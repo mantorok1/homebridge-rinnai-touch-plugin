@@ -38,13 +38,13 @@ class RinnaiTouchFan extends RinnaiTouchAccessory {
         let service = this.accessory.getService(Service.Fan);
         service
             .getCharacteristic(Characteristic.On)
-            .on('get', this.getCharacteristicValue.bind(this, this.getFanOn.bind(this)))
-            .on('set', this.setCharacteristicValue.bind(this, this.setFanOn.bind(this)));
+            .on('get', this.getCharacteristicValue.bind(this, this.getFanOn.bind(this), 'On'))
+            .on('set', this.setCharacteristicValue.bind(this, this.setFanOn.bind(this), 'On'));
 
         service
             .getCharacteristic(Characteristic.RotationSpeed)
-            .on('get', this.getCharacteristicValue.bind(this, this.getFanRotationSpeed.bind(this)))
-            .on('set', this.setCharacteristicValue.bind(this, this.setFanRotationSpeed.bind(this)));
+            .on('get', this.getCharacteristicValue.bind(this, this.getFanRotationSpeed.bind(this), 'RotationSpeed'))
+            .on('set', this.setCharacteristicValue.bind(this, this.setFanRotationSpeed.bind(this), 'RotationSpeed'));
     }
 
     getFanOn() {

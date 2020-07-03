@@ -21,8 +21,8 @@ class RinnaiTouchManualSwitch extends RinnaiTouchSwitch {
 
         this.accessory.getService(Service.Switch)
             .getCharacteristic(Characteristic.On)
-            .on('get', this.getCharacteristicValue.bind(this, this.getManualSwitchOn.bind(this)))
-            .on('set', this.setCharacteristicValue.bind(this, this.setManualSwitchOn.bind(this)));
+            .on('get', this.getCharacteristicValue.bind(this, this.getManualSwitchOn.bind(this), 'On'))
+            .on('set', this.setCharacteristicValue.bind(this, this.setManualSwitchOn.bind(this), 'On'));
     }
 
     getManualSwitchOn() {

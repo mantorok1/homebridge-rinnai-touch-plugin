@@ -23,9 +23,8 @@ let Accessory, Service, Characteristic, UUIDGen;
         "name": "Rinnai Touch",
         "address": "192.168.1.3",
         "port": 27847,
-        "useHeaterCooler": false,
-        "showZoneSwitches": true,
-        "useZoneHeaterCooler": true,
+        "controllerType": "T",
+        "zoneType": "S",
         "showFan": true,
         "showAuto": true,
         "showAdvanceSwitches": true,
@@ -197,7 +196,7 @@ class RinnaiTouchPlatform {
         this.log.debug(this.constructor.name, 'configureThermostats');
 
         for(let zone of this.service.AllZones) {
-            if (!this.settings.useHeaterCooler && this.service.controllers.includes(zone)) {
+            if (this.settings.controllerType === 'T' && this.service.controllers.includes(zone)) {
                 let name = this.service.hasMultiSetPoint
                     ? this.service.getZoneName(zone)
                     : this.settings.name;
@@ -213,9 +212,8 @@ class RinnaiTouchPlatform {
 
         for(let zone of this.service.AllZones) {
             let addHeaterCooler =
-                (this.settings.useHeaterCooler && this.service.controllers.includes(zone)) ||
-                (!this.service.hasMultiSetPoint && zone !== 'U' && this.settings.showZoneSwitches &&
-                 this.settings.useZoneHeaterCooler && this.service.zones.includes(zone));
+                (this.settings.controllerType === 'H' && this.service.controllers.includes(zone)) ||
+                (!this.service.hasMultiSetPoint && zone !== 'U' && this.settings.zoneType === 'H' && this.service.zones.includes(zone));
 
             if (addHeaterCooler) {
                 let name = zone !== 'U'
@@ -232,7 +230,7 @@ class RinnaiTouchPlatform {
         this.log.debug(this.constructor.name, 'configureZoneSwitches');
 
         for(let zone of ['A','B','C','D']) {
-            if (!this.service.hasMultiSetPoint && this.settings.showZoneSwitches && !this.settings.useZoneHeaterCooler && this.service.zones.includes(zone)) {
+            if (!this.service.hasMultiSetPoint && this.settings.zoneType === 'S' && this.service.zones.includes(zone)) {
                 this.addAccessory(RinnaiTouchZoneSwitch, this.service.getZoneName(zone), zone);
             } else {
                 this.removeAccessory(RinnaiTouchZoneSwitch, zone);

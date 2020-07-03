@@ -21,8 +21,8 @@ class RinnaiTouchAdvanceSwitch extends RinnaiTouchSwitch {
 
         this.accessory.getService(Service.Switch)
             .getCharacteristic(Characteristic.On)
-            .on('get', this.getCharacteristicValue.bind(this, this.getAdvanceSwitchOn.bind(this)))
-            .on('set', this.setCharacteristicValue.bind(this, this.setAdvanceSwitchOn.bind(this)));
+            .on('get', this.getCharacteristicValue.bind(this, this.getAdvanceSwitchOn.bind(this), 'On'))
+            .on('set', this.setCharacteristicValue.bind(this, this.setAdvanceSwitchOn.bind(this), 'On'));
     }
 
     getAdvanceSwitchOn() {
